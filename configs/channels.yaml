@@ -1,12 +1,14 @@
 pipeline:
-  - file_name: 'channels.csv'
-  - file_url: 'https://raw.githubusercontent.com/AhmedWaheedM/fastfeast-data-solution/refs/heads/salma-chaos/batch/channels.csv'
-  - target_table: 'DIM_CHANNELS'
-  - columns: 
+  file_name: 'channels.csv'
+  file_url: 'https://raw.githubusercontent.com/AhmedWaheedM/fastfeast-data-solution/refs/heads/salma-chaos/batch/channels.csv'
+  target_table: 'DIM_CHANNELS'
+
+  columns:
     - name: 'channel_id'
       type: 'integer'
       nullable: false
       primary_key: true
+
     - name: 'channel_name'
       type: 'varchar'
       nullable: false
