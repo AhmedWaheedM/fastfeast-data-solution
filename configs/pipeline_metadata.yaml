@@ -1,238 +1,210 @@
 batch:
-  - file_name: agents.csv
-    target_dimension: DIM_AGENTS
+  - file_name: 'agents.csv'
+    target_dimension: 'DIM_AGENTS'
     columns:
-      - name: agent_id
-        type: integer
-        pk: null
-      - name: agent_email
-        type: varchar
-        pii: null
-      - name: agent_phone
-        type: varchar
-        pii: null
-      - name: team_id
-        type: integer
-        fk:
-          pk: team_id
-          target_dimension: DIM_TEAMS
-      - name: csat_score
-        type: float
-        range:
-          min: 0
-          max: 5
-  - file_name: customers.csv
-    target_dimension: DIM_CUSTOMERS
+      - name: 'agent_id'
+        type: 'integer'
+        pk:
+      - name: 'agent_email'
+        type: 'varchar'
+        pii:
+      - name: 'agent_phone'
+        type: 'varchar'
+        pii:
+      - name: 'team_id'
+        type: 'integer'
+        fk: {pk: 'team_id', target_dimension: 'DIM_TEAMS'}
+      - name: 'csat_score'
+        type: 'float'
+        range: {min: 0, max: 5}
+  
+  - file_name: 'customers.csv'
+    target_dimension: 'DIM_CUSTOMERS'
     columns:
-      - name: customer_id
-        type: integer
-        pk: null
-      - name: email
-        type: varchar
-        pii: null
-      - name: phone
-        type: varchar
-        pii: null
-      - name: region_id
-        type: integer
-        fk:
-          pk: region_id
-          target_dimension: DIM_REGIONS
-      - name: segment_id
-        type: integer
-        fk:
-          pk: segment_id
-          target_dimension: DIM_SEGMENTS
-  - file_name: drivers.csv
-    target_dimension: DIM_DRIVERS
+      - name: 'customer_id'
+        type: 'integer'
+        pk:
+      - name: 'email'
+        type: 'varchar'
+        pii:
+      - name: 'phone'
+        type: 'varchar'
+        pii:
+      - name: 'region_id'
+        type: 'integer'
+        fk: {pk: 'region_id', target_dimension: 'DIM_REGIONS'}
+      - name: 'segment_id'
+        type: 'integer'
+        fk: {pk: 'segment_id', target_dimension: 'DIM_SEGMENTS'}
+  
+  - file_name: 'drivers.csv'
+    target_dimension: 'DIM_DRIVERS'
     columns:
-      - name: driver_id
-        type: integer
-        pk: null
-      - name: national_id
-        type: varchar
-        pii: null
-      - name: region_id
-        type: integer
-        fk:
-          pk: region_id
-          target_dimension: DIM_REGIONS
-      - name: rating_avg
-        type: float
-        range:
-          min: 1
-          max: 5
-  - file_name: restaurants.json
-    target_dimension: DIM_RESTAURANTS
+      - name: 'driver_id'
+        type: 'integer'
+        pk:
+      - name: 'national_id'
+        type: 'varchar'
+        pii:
+      - name: 'region_id'
+        type: 'integer'
+        fk: {pk: 'region_id', target_dimension: 'DIM_REGIONS'}
+      - name: 'rating_avg'
+        type: 'float'
+        range: {min: 1, max: 5}
+  
+  - file_name: 'restaurants.json'
+    target_dimension: 'DIM_RESTAURANTS'
     columns:
-      - name: restaurant_id
-        type: integer
-        pk: null
-      - name: region_id
-        type: integer
-        fk:
-          pk: region_id
-          target_dimension: DIM_REGIONS
-      - name: category_id
-        type: integer
-        fk:
-          pk: category_id
-          target_dimension: DIM_CATEGORIES
-      - name: price_tier
-        type: varchar
-        expected_values:
-          - Low
-          - Mid
-          - High
-      - name: rating_avg
-        type: float
-        range:
-          min: 1
-          max: 5
-  - file_name: reasons.csv
-    target_dimension: DIM_REASONS
+      - name: 'restaurant_id'
+        type: 'integer'
+        pk:
+      - name: 'region_id'
+        type: 'integer'
+        fk: {pk: 'region_id', target_dimension: 'DIM_REGIONS'}
+      - name: 'category_id'
+        type: 'integer'
+        fk: {pk: 'category_id', target_dimension: 'DIM_CATEGORIES'}
+      - name: 'price_tier'
+        type: 'varchar'
+        expected_values: ['Low', 'Mid', 'High']
+      - name: 'rating_avg'
+        type: 'float'
+        range: {min: 1, max: 5}
+  
+  - file_name: 'reasons.csv'
+    target_dimension: 'DIM_REASONS'
     columns:
-      - name: reason_id
-        type: integer
-        pk: null
-      - name: reason_category_id
-        type: integer
-        fk:
-          pk: reason_category_id
-          target_dimension: DIM_REASON_CATEGORIES
-      - name: severity_level
-        type: integer
-        range:
-          min: 1
-          max: 5
-  - file_name: regions.csv
-    target_dimension: DIM_REGIONS
+      - name: 'reason_id'
+        type: 'integer'
+        pk:
+      - name: 'reason_category_id'
+        type: 'integer'
+        fk: {pk: 'reason_category_id', target_dimension: 'DIM_REASON_CATEGORIES'}
+      - name: 'severity_level'
+        type: 'integer'
+        range: {min: 1, max: 5}
+  
+  - file_name: 'regions.csv'
+    target_dimension: 'DIM_REGIONS'
     columns:
-      - name: region_id
-        type: integer
-        pk: null
-      - name: city_id
-        type: integer
-        fk:
-          pk: city_id
-          target_dimension: DIM_CITIES
-  - file_name: cities.json
-    target_dimension: DIM_CITIES
+      - name: 'region_id'
+        type: 'integer'
+        pk:
+      - name: 'city_id'
+        type: 'integer'
+        fk: {pk: 'city_id', target_dimension: 'DIM_CITIES'}
+  
+  - file_name: 'cities.json'
+    target_dimension: 'DIM_CITIES'
     columns:
-      - name: city_id
-        type: integer
-        pk: null
-  - file_name: categories.csv
-    target_dimension: DIM_CATEGORIES
+      - name: 'city_id'
+        type: 'integer'
+        pk:
+  
+  - file_name: 'categories.csv'
+    target_dimension: 'DIM_CATEGORIES'
     columns:
-      - name: category_id
-        type: integer
-        pk: null
-  - file_name: channels.csv
-    target_dimension: DIM_CHANNELS
+      - name: 'category_id'
+        type: 'integer'
+        pk:
+  
+  - file_name: 'channels.csv'
+    target_dimension: 'DIM_CHANNELS'
     columns:
-      - name: channel_id
-        type: integer
-        pk: null
-  - file_name: priorities.csv
-    target_dimension: DIM_PRIORITIES
+      - name: 'channel_id'
+        type: 'integer'
+        pk:
+  
+  - file_name: 'priorities.csv'
+    target_dimension: 'DIM_PRIORITIES'
     columns:
-      - name: priority_id
-        type: integer
-        pk: null
-  - file_name: segments.csv
-    target_dimension: DIM_SEGMENTS
+      - name: 'priority_id'
+        type: 'integer'
+        pk:
+  
+  - file_name: 'segments.csv'
+    target_dimension: 'DIM_SEGMENTS'
     columns:
-      - name: segment_id
-        type: integer
-        pk: null
-  - file_name: teams.csv
-    target_dimension: DIM_TEAMS
+      - name: 'segment_id'
+        type: 'integer'
+        pk:
+  
+  - file_name: 'teams.csv'
+    target_dimension: 'DIM_TEAMS'
     columns:
-      - name: team_id
-        type: integer
-        pk: null
-  - file_name: reason_categories.csv
-    target_dimension: DIM_REASON_CATEGORIES
+      - name: 'team_id'
+        type: 'integer'
+        pk:
+  
+  - file_name: 'reason_categories.csv'
+    target_dimension: 'DIM_REASON_CATEGORIES'
     columns:
-      - name: reason_category_id
-        type: integer
-        pk: null
+      - name: 'reason_category_id'
+        type: 'integer'
+        pk:
+  
+  
 stream:
-  - file_name: orders.json
-    target_fact: FACT_ORDERS_TICKET
-    write_priority: 1
+  - file_name: 'orders.json'
+    target_fact: 'FACT_ORDERS_TICKET'
+    write_priority: 1   
     columns:
-      - name: order_id
-        type: varchar
-        pk: null
-      - name: customer_id
-        type: integer
-        fk:
-          pk: customer_id
-          target_dimension: DIM_CUSTOMERS
-      - name: restaurant_id
-        type: integer
-        fk:
-          pk: restaurant_id
-          target_dimension: DIM_RESTAURANTS
-      - name: total_amount
-        type: float
-        range:
-          min: 0
-      - name: order_status
-        type: varchar
-        expected_values:
-          - Delivered
-          - Cancelled
-          - In Transit
-          - Pending
-      - name: order_created_at
-        type: timestamp
-        nullable: null
-  - file_name: ticket_events.json
-    target_fact: FACT_ORDERS_TICKET
-    write_priority: 2
+      - name: 'order_id'
+        type: 'varchar'
+        pk:
+      - name: 'customer_id'
+        type: 'integer'
+        fk: {pk: 'customer_id', target_dimension: 'DIM_CUSTOMERS'}
+      - name: 'restaurant_id'
+        type: 'integer'
+        fk: {pk: 'restaurant_id', target_dimension: 'DIM_RESTAURANTS'}
+      - name: 'total_amount'
+        type: 'float'
+        range: {min: 0}
+      - name: 'order_status'
+        type: 'varchar'
+        expected_values: ['Delivered', 'Cancelled', 'In Transit', 'Pending']
+      - name: 'order_created_at'
+        type: 'timestamp'
+        nullable:
+  
+  - file_name: 'ticket_events.json'
+    target_fact: 'FACT_ORDERS_TICKET'
+    write_priority: 2   
     columns:
-      - name: event_id
-        type: varchar
-        pk: null
-      - name: ticket_id
-        type: varchar
-      - name: new_status
-        type: varchar
-      - name: event_ts
-        type: timestamp
-      - name: notes
-        type: varchar
-        pii: null
-  - file_name: tickets.csv
-    target_fact: FACT_ORDERS_TICKET
-    write_priority: 3
+      - name: 'event_id'
+        type: 'varchar'
+        pk:
+      - name: 'ticket_id'
+        type: 'varchar'
+      - name: 'new_status'
+        type: 'varchar'
+      - name: 'event_ts'
+        type: 'timestamp'
+      - name: 'notes'
+        type: 'varchar'
+        pii:            
+  
+  - file_name: 'tickets.csv'
+    target_fact: 'FACT_ORDERS_TICKET'
+    write_priority: 3   
     columns:
-      - name: ticket_id
-        type: varchar
-        pk: null
-      - name: order_id
-        type: varchar
-        fk:
-          pk: order_id
-          target_fact: FACT_ORDERS_TICKET
-      - name: reason_id
-        type: integer
-        fk:
-          pk: reason_id
-          target_dimension: DIM_REASONS
-      - name: refund_amount
-        type: float
-        range:
-          min: 0
-      - name: status
-        type: varchar
-        expected_values:
-          - Open
-          - InProgress
-          - Resolved
-          - Closed
-      - name: created_at
-        type: timestamp
+      - name: 'ticket_id'
+        type: 'varchar'
+        pk:
+      - name: 'order_id'
+        type: 'varchar'
+        fk: {pk: 'order_id', target_fact: 'FACT_ORDERS_TICKET'}
+      - name: 'reason_id'
+        type: 'integer'
+        fk: {pk: 'reason_id', target_dimension: 'DIM_REASONS'}
+      - name: 'refund_amount'
+        type: 'float'
+        range: {min: 0}
+      - name: 'status'
+        type: 'varchar'
+        expected_values: ['Open', 'InProgress', 'Resolved', 'Closed']
+      - name: 'created_at'
+        type: 'timestamp'
+
