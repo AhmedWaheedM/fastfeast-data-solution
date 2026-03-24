@@ -6,7 +6,7 @@
 * **Check-point**:
   Used to track the **last processed files**. This can be stored either as:
 
-  * A **text file** (`check_point.txt`)
+  * A **text file or yaml file** (`check_point.txt`) , (`check_point.yaml`)
   * Or a **table in the database**
 
 * **Poll interval**:
