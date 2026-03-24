@@ -26,6 +26,7 @@ class Paths:
 class Pipeline:
     batch_size: int
     retry_attempts: int
+    #max_threads: int
     log_level: str
     mode: str
 
@@ -62,6 +63,11 @@ class Batch:
   schedule: str
   file_pattern: str 
   max_files_per_run: int 
+@dataclass
+class Threshold:
+   max_open: int
+   max_response: int
+   #orphan_rate: int
 
 @dataclass
 class Settings:
@@ -74,6 +80,7 @@ class Settings:
     alerts: Alerts
     stream: Stream
     batch: Batch
+    threshold: Threshold
 
 
 def load(path: str) -> Settings:
@@ -89,5 +96,6 @@ def load(path: str) -> Settings:
         logging=Logging(**data["logging"]),
         alerts=Alerts(**data["alerts"]),
         stream=Stream(**data["stream"]),
-        batch=Batch(**data["batch"])
+        batch=Batch(**data["batch"]),
+        threshold=Threshold(**data["threshold"])
     )

@@ -53,4 +53,8 @@ batch:
   max_files_per_run: 10   
 # this will be detected through experience with data, or we can calc the time for each batch
 # and take the batch with the best time 
-  
+
+threshould:
+  max_open: 1
+  max_response: 15
+  # orphan_rate: 
