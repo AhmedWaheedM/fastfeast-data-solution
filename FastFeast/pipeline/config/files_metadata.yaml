@@ -377,34 +377,11 @@ stream:
         nullable: false
       - name: 'order_created_at'
         type: 'timestamp'
-        nullable: true
-
-  - file_name: 'ticket_events.json'
-    target_fact: 'FACT_ORDER'
-    write_priority: 2
-    columns:
-      - name: 'event_id'
-        type: 'varchar'
-        pk: true
-        nullable: false
-      - name: 'ticket_id'
-        type: 'varchar'
-        nullable: false
-      - name: 'new_status'
-        type: 'varchar'
-        expected_values: ['Open', 'InProgress', 'Resolved', 'Closed']
-        nullable: false
-      - name: 'event_ts'
-        type: 'timestamp'
-        nullable: false
-      - name: 'notes'
-        type: 'varchar'
-        pii: true
-        nullable: true
+        nullable: true      
 
   - file_name: 'tickets.csv'
     target_fact: 'FACT_ORDER'
-    write_priority: 3
+    write_priority: 2
     columns:
       - name: 'ticket_id'
         type: 'varchar'
@@ -429,3 +406,26 @@ stream:
       - name: 'created_at'
         type: 'timestamp'
         nullable: false
+
+  - file_name: 'ticket_events.json'
+    target_fact: 'FACT_ORDER'
+    write_priority: 3
+    columns:
+      - name: 'event_id'
+        type: 'varchar'
+        pk: true
+        nullable: false
+      - name: 'ticket_id'
+        type: 'varchar'
+        nullable: false
+      - name: 'new_status'
+        type: 'varchar'
+        expected_values: ['Open', 'InProgress', 'Resolved', 'Closed']
+        nullable: false
+      - name: 'event_ts'
+        type: 'timestamp'
+        nullable: false
+      - name: 'notes'
+        type: 'varchar'
+        pii: true
+        nullable: true
