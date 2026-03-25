@@ -24,8 +24,10 @@ pipeline:
 # every time we run pipeline for test we may change between batch or stream run,
 # change it here
 
-format:
-  file_type: parquet
+export:
+  enabled: true
+  format: parquet
+  target_layer: gold
 
 datetime_handling:
   extract_date_key: true

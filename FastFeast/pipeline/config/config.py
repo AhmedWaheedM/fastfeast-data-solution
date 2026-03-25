@@ -31,8 +31,10 @@ class Pipeline:
     mode: str
 
 @dataclass
-class Format:
-    file_type: str
+class Export:
+    enabled: bool
+    format: str
+    target_layer: str
 
 @dataclass
 class Datetime:
@@ -56,12 +58,12 @@ class Alerts:
 @dataclass
 class Stream:
   poll_interval_sec: int     
-  file_pattern: str 
+  file_pattern: list 
 
 @dataclass
 class Batch:
   schedule: str
-  file_pattern: str 
+  file_pattern: list 
   max_files_per_run: int 
 @dataclass
 class Threshold:
@@ -74,7 +76,7 @@ class Settings:
     database: Database
     paths: Paths
     pipeline: Pipeline
-    format: Format
+    export: Export
     datetime_handling: Datetime
     logging: Logging
     alerts: Alerts
@@ -91,7 +93,7 @@ def load(path: str) -> Settings:
         database=Database(**data["database"]),
         paths=Paths(**data["paths"]),
         pipeline=Pipeline(**data["pipeline"]),
-        format=Format(**data["format"]),
+        export=Export(**data["export"]),
         datetime_handling=Datetime(**data["datetime_handling"]),
         logging=Logging(**data["logging"]),
         alerts=Alerts(**data["alerts"]),
