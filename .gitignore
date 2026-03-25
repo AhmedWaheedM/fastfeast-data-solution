@@ -1,0 +1,49 @@
+# Data files
+data/
+data_input/
+data_archive/
+
+# Databases
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets & local config
+.env
+.env.local
+local_settings.yaml
+secrets.yaml
+
+# Logs & reports
+*.log
+logs/
+*.pdf
+reports/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS 
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
