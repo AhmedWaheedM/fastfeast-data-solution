@@ -1,0 +1,431 @@
+batch:
+  # ------------------------------------------------------------
+  # Lookup tables (for dimensions)
+  # ------------------------------------------------------------
+  - file_name: 'cities.json'
+    # used as lookup for dim_customer & dim_driver & dim_restaurant
+    columns:
+      - name: 'city_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'city_name'
+        type: 'varchar'
+        nullable: false
+      - name: 'country'
+        type: 'varchar'
+        nullable: true
+      - name: 'timezone'
+        type: 'varchar'
+        nullable: true
+
+  - file_name: 'regions.csv'
+    # used as lookup for dim_customer & dim_driver & dim_restaurant
+    columns:
+      - name: 'region_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'region_name'
+        type: 'varchar'
+        nullable: false
+      - name: 'city_id'
+        type: 'integer'
+        fk: {pk: 'city_id', target_table: 'cities.json'}
+        nullable: false
+      - name: 'delivery_base_fee'
+        type: 'float'
+        nullable: true
+
+  - file_name: 'categories.csv'
+    # used as lookup for dim_restaurant
+    columns:
+      - name: 'category_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'category_name'
+        type: 'varchar'
+        nullable: false
+
+  - file_name: 'segments.csv'
+    # used as lookup for dim_customer
+    columns:
+      - name: 'segment_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'segment_name'
+        type: 'varchar'
+        nullable: false
+      - name: 'discount_pct'
+        type: 'float'
+        nullable: true
+      - name: 'priority_support'
+        type: 'boolean'
+        nullable: true
+
+  - file_name: 'teams.csv'
+    # used as lookup for dim_agent
+    columns:
+      - name: 'team_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'team_name'
+        type: 'varchar'
+        nullable: false
+
+  - file_name: 'reason_categories.csv'
+    # used as lookup for dim_reason
+    columns:
+      - name: 'reason_category_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'category_name'
+        type: 'varchar'
+        nullable: false
+
+  # ------------------------------------------------------------
+  # Business dimensions (with PII)
+  # ------------------------------------------------------------
+  - file_name: 'customers.csv'
+    target_dimension: 'DIM_CUSTOMER'
+    columns:
+      - name: 'customer_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'full_name'
+        type: 'varchar'
+        pii: true
+        nullable: true
+      - name: 'email'
+        type: 'varchar'
+        pii: true
+        format: 'email'
+        nullable: true
+      - name: 'phone'
+        type: 'varchar'
+        pii: true
+        format: 'phone'
+        nullable: true
+      - name: 'region_id'
+        type: 'integer'
+        fk: {pk: 'region_id', target_table: 'regions.csv'}
+        nullable: true
+      - name: 'segment_id'
+        type: 'integer'
+        fk: {pk: 'segment_id', target_table: 'segments.csv'}
+        nullable: true
+      - name: 'signup_date'
+        type: 'timestamp'
+        nullable: true
+      - name: 'gender'
+        type: 'varchar'
+        expected_values: ['male', 'female']
+        nullable: true
+      - name: 'created_at'
+        type: 'timestamp'
+        nullable: true
+      - name: 'updated_at'
+        type: 'timestamp'
+        nullable: true
+
+  - file_name: 'drivers.csv'
+    target_dimension: 'DIM_DRIVER'
+    columns:
+      - name: 'driver_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'driver_name'
+        type: 'varchar'
+        pii: true
+        nullable: true
+      - name: 'driver_phone'
+        type: 'varchar'
+        pii: true
+        format: 'phone'
+        nullable: true
+      - name: 'national_id'
+        type: 'varchar'
+        pii: true
+        nullable: true
+      - name: 'region_id'
+        type: 'integer'
+        fk: {pk: 'region_id', target_table: 'regions.csv'}
+        nullable: true
+      - name: 'shift'
+        type: 'varchar'
+        expected_values: ['morning', 'evening', 'night']
+        nullable: true
+      - name: 'vehicle_type'
+        type: 'varchar'
+        expected_values: ['car', 'bike', 'motorbike']
+        nullable: true
+      - name: 'hire_date'
+        type: 'timestamp'
+        nullable: true
+      - name: 'rating_avg'
+        type: 'float'
+        range: {min: 1, max: 5}
+        nullable: true
+      - name: 'on_time_rate'
+        type: 'float'
+        range: {min: 0, max: 1}
+        nullable: true
+      - name: 'cancel_rate'
+        type: 'float'
+        range: {min: 0, max: 1}
+        nullable: true
+      - name: 'completed_deliveries'
+        type: 'integer'
+        nullable: true
+      - name: 'is_active'
+        type: 'boolean'
+        nullable: true
+      - name: 'created_at'
+        type: 'timestamp'
+        nullable: true
+      - name: 'updated_at'
+        type: 'timestamp'
+        nullable: true
+
+  - file_name: 'restaurants.json'
+    target_dimension: 'DIM_RESTAURANT'
+    columns:
+      - name: 'restaurant_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'restaurant_name'
+        type: 'varchar'
+        nullable: true
+      - name: 'region_id'
+        type: 'integer'
+        fk: {pk: 'region_id', target_table: 'regions.csv'}
+        nullable: true
+      - name: 'category_id'
+        type: 'integer'
+        fk: {pk: 'category_id', target_table: 'categories.csv'}
+        nullable: true
+      - name: 'price_tier'
+        type: 'varchar'
+        expected_values: ['Low', 'Mid', 'High']
+        nullable: true
+      - name: 'rating_avg'
+        type: 'float'
+        range: {min: 1, max: 5}
+        nullable: true
+      - name: 'prep_time_avg_min'
+        type: 'integer'
+        nullable: true
+      - name: 'is_active'
+        type: 'boolean'
+        nullable: true
+      - name: 'created_at'
+        type: 'timestamp'
+        nullable: true
+      - name: 'updated_at'
+        type: 'timestamp'
+        nullable: true
+
+  - file_name: 'agents.csv'
+    target_dimension: 'DIM_AGENT'
+    columns:
+      - name: 'agent_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'agent_name'
+        type: 'varchar'
+        pii: true
+        nullable: true
+      - name: 'agent_email'
+        type: 'varchar'
+        pii: true
+        format: 'email'
+        nullable: true
+      - name: 'agent_phone'
+        type: 'varchar'
+        pii: true
+        format: 'phone'
+        nullable: true
+      - name: 'team_id'
+        type: 'integer'
+        fk: {pk: 'team_id', target_table: 'teams.csv'}
+        nullable: true
+      - name: 'skill_level'
+        type: 'varchar'
+        expected_values: ['Junior', 'Mid', 'Senior', 'Lead']
+        nullable: true
+      - name: 'hire_date'
+        type: 'timestamp'
+        nullable: true
+      - name: 'avg_handle_time_min'
+        type: 'integer'
+        nullable: true
+      - name: 'resolution_rate'
+        type: 'float'
+        range: {min: 0, max: 1}
+        nullable: true
+      - name: 'csat_score'
+        type: 'float'
+        range: {min: 0, max: 5}
+        nullable: true
+      - name: 'is_active'
+        type: 'boolean'
+        nullable: true
+      - name: 'created_at'
+        type: 'timestamp'
+        nullable: true
+      - name: 'updated_at'
+        type: 'timestamp'
+        nullable: true
+
+  - file_name: 'channels.csv'
+    target_dimension: 'DIM_CHANNEL'
+    columns:
+      - name: 'channel_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'channel_name'
+        type: 'varchar'
+        nullable: false
+
+  - file_name: 'priorities.csv'
+    target_dimension: 'DIM_PRIORITY'
+    columns:
+      - name: 'priority_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'priority_code'
+        type: 'varchar'
+        nullable: false
+      - name: 'priority_name'
+        type: 'varchar'
+        nullable: false
+      - name: 'sla_first_response_min'
+        type: 'integer'
+        nullable: false
+      - name: 'sla_resolution_min'
+        type: 'integer'
+        nullable: false
+
+  - file_name: 'reasons.csv'
+    target_dimension: 'DIM_REASON'
+    columns:
+      - name: 'reason_id'
+        type: 'integer'
+        pk: true
+        nullable: false
+      - name: 'reason_name'
+        type: 'varchar'
+        nullable: false
+      - name: 'reason_category_id'
+        type: 'integer'
+        fk: {pk: 'reason_category_id', target_table: 'reason_categories.csv'}
+        nullable: false
+      - name: 'severity_level'
+        type: 'integer'
+        range: {min: 1, max: 5}
+        nullable: false
+      - name: 'typical_refund_pct'
+        type: 'float'
+        range: {min: 0, max: 1}
+        nullable: true
+
+stream:
+  # ------------------------------------------------------------
+  # Transactional tables
+  # ------------------------------------------------------------
+  - file_name: 'orders.json'
+    target_fact: 'FACT_ORDER'
+    write_priority: 1
+    columns:
+      - name: 'order_id'
+        type: 'varchar'
+        pk: true
+        nullable: false
+      - name: 'customer_id'
+        type: 'integer'
+        fk: {pk: 'customer_id', target_dimension: 'DIM_CUSTOMER'}
+        nullable: true
+      - name: 'restaurant_id'
+        type: 'integer'
+        fk: {pk: 'restaurant_id', target_dimension: 'DIM_RESTAURANT'}
+        nullable: true
+      - name: 'driver_id'
+        type: 'integer'
+        fk: {pk: 'driver_id', target_dimension: 'DIM_DRIVER'}
+        nullable: true
+      - name: 'priority_id'
+        type: 'integer'
+        fk: {pk: 'priority_id', target_dimension: 'DIM_PRIORITY'}
+        nullable: true
+      - name: 'total_amount'
+        type: 'float'
+        range: {min: 0}
+        nullable: false
+      - name: 'order_status'
+        type: 'varchar'
+        expected_values: ['Delivered', 'Cancelled', 'In Transit', 'Pending']
+        nullable: false
+      - name: 'order_created_at'
+        type: 'timestamp'
+        nullable: true      
+
+  - file_name: 'tickets.csv'
+    target_fact: 'FACT_ORDER'
+    write_priority: 2
+    columns:
+      - name: 'ticket_id'
+        type: 'varchar'
+        pk: true
+        nullable: false
+      - name: 'order_id'
+        type: 'varchar'
+        fk: {pk: 'order_id', target_fact: 'FACT_ORDER'}
+        nullable: false
+      - name: 'reason_id'
+        type: 'integer'
+        fk: {pk: 'reason_id', target_dimension: 'DIM_REASON'}
+        nullable: true
+      - name: 'refund_amount'
+        type: 'float'
+        range: {min: 0}
+        nullable: true
+      - name: 'status'
+        type: 'varchar'
+        expected_values: ['Open', 'InProgress', 'Resolved', 'Closed']
+        nullable: false
+      - name: 'created_at'
+        type: 'timestamp'
+        nullable: false
+
+  - file_name: 'ticket_events.json'
+    target_fact: 'FACT_ORDER'
+    write_priority: 3
+    columns:
+      - name: 'event_id'
+        type: 'varchar'
+        pk: true
+        nullable: false
+      - name: 'ticket_id'
+        type: 'varchar'
+        nullable: false
+      - name: 'new_status'
+        type: 'varchar'
+        expected_values: ['Open', 'InProgress', 'Resolved', 'Closed']
+        nullable: false
+      - name: 'event_ts'
+        type: 'timestamp'
+        nullable: false
+      - name: 'notes'
+        type: 'varchar'
+        pii: true
+        nullable: true
