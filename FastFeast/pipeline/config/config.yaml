@@ -5,15 +5,15 @@ database:
   read_only: false         
 
 paths:
-  master_dir: ../data/master
-  batch_dir: ../data/input/batch
-  stream_dir: ../data/input/stream
-  output_dir: ../data/output
-  log_file: ../utilities/pipeline.log
-  quarantine_file : ../validation
-  report_file : ../utilities
-  alert_file : ../utilities
-  check_point_file : ../utilities/check_point.txt
+  master_dir: ../data/master/
+  batch_dir: ../data/input/batch/
+  stream_dir: ../data/input/stream/
+  output_dir: ../data/output/
+  log_file: ../output/
+  quarantine_file : ../validation/
+  report_file : ../output/
+  alert_file : ../output/
+  check_point_file : ../utilities/
 
 pipeline:
   batch_size: 1000
@@ -45,16 +45,16 @@ alerts:
 
 stream:
   poll_interval_sec: 30      # event-based, check every 30 seconds
-  file_pattern: "*.parquet"  
+  file_pattern: ["*.csv", "*.json"] 
 
 batch:
   schedule: daily # time-based
-  file_pattern: "*.parquet"  
+  file_pattern: ["*.csv", "*.json"] 
   max_files_per_run: 10   
 # this will be detected through experience with data, or we can calc the time for each batch
 # and take the batch with the best time 
 
-threshould:
+threshold:
   max_open: 1
   max_response: 15
-  # orphan_rate: 
+  #orphan_rate: 
