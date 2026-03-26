@@ -31,6 +31,10 @@ class Pipeline:
     log_level: str
     mode: str
 
+# @dataclass
+# class Format:
+#     date: Datetime
+
 
 @dataclass
 class Datetime:
@@ -61,7 +65,6 @@ class Batch:
   schedule: str
   file_pattern: str 
   max_files_per_run: int 
-  
 @dataclass
 class Threshold:
    max_open: int
@@ -97,7 +100,7 @@ def load(path: str) -> Settings:
         threshold=Threshold(**data["threshold"])
     )
 
-# Set path of config.yaml and call load function 
+# Set path of config.yaml and call load function
 yaml_path = Path(os.getenv("CONFIG_YAML", Path(__file__).parent / "config.yaml"))
 
 settings = load(yaml_path)

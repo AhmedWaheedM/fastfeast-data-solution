@@ -24,6 +24,8 @@ pipeline:
 # every time we run pipeline for test we may change between batch or stream run,
 # also can set this Test : to run pipeline at anytime
 
+format:
+  file_type: parquet
 
 datetime_handling:
   extract_date_key: true
