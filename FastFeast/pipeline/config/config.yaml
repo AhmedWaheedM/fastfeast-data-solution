@@ -5,32 +5,30 @@ database:
   read_only: false         
 
 paths:
-  master_dir: ../data/master/
-  batch_dir: ../data/input/batch/
-  stream_dir: ../data/input/stream/
-  output_dir: ../data/output/
-  log_file: ../output/
-  quarantine_file : ../validation/
-  report_file : ../output/
-  alert_file : ../output/
-  check_point_file : ../utilities/
+  master_dir: /data/master/
+  batch_dir: data/input/batch/
+  stream_dir: /data/input/stream/
+  output_dir: /data/output/
+  log_file: /output/
+  quarantine_file : /validation/
+  report_file : /output/
+  alert_file : /output/
+  check_point_file : /utilities/
 
 pipeline:
   batch_size: 1000
   retry_attempts: 3
   #max_threads: 4
   log_level: INFO
-  mode : hybrid
+  mode : hybrid 
 # every time we run pipeline for test we may change between batch or stream run,
-# change it here
+# also can set this Test : to run pipeline at anytime
 
-format:
-  file_type: parquet
 
 datetime_handling:
   extract_date_key: true
   extract_time_key: true
-  date_key_format: "%Y%m%d"
+  date_key_format: "%Y-%m-%d"
   time_key_format: "%H%M%S"
   keep_original_timestamp: true
 
@@ -48,7 +46,7 @@ stream:
   file_pattern: ["*.csv", "*.json"] 
 
 batch:
-  schedule: daily # time-based
+  schedule: "7:00" # time-based
   file_pattern: ["*.csv", "*.json"] 
   max_files_per_run: 10   
 # this will be detected through experience with data, or we can calc the time for each batch

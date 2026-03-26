@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import yaml
-
+from pathlib import Path
+import os
 
 @dataclass
 class Database:
@@ -30,9 +31,6 @@ class Pipeline:
     log_level: str
     mode: str
 
-@dataclass
-class Format:
-    file_type: str
 
 @dataclass
 class Datetime:
@@ -63,6 +61,7 @@ class Batch:
   schedule: str
   file_pattern: str 
   max_files_per_run: int 
+  
 @dataclass
 class Threshold:
    max_open: int
@@ -74,7 +73,6 @@ class Settings:
     database: Database
     paths: Paths
     pipeline: Pipeline
-    format: Format
     datetime_handling: Datetime
     logging: Logging
     alerts: Alerts
@@ -91,7 +89,6 @@ def load(path: str) -> Settings:
         database=Database(**data["database"]),
         paths=Paths(**data["paths"]),
         pipeline=Pipeline(**data["pipeline"]),
-        format=Format(**data["format"]),
         datetime_handling=Datetime(**data["datetime_handling"]),
         logging=Logging(**data["logging"]),
         alerts=Alerts(**data["alerts"]),
@@ -99,3 +96,8 @@ def load(path: str) -> Settings:
         batch=Batch(**data["batch"]),
         threshold=Threshold(**data["threshold"])
     )
+
+# Set path of config.yaml and call load function 
+yaml_path = Path(os.getenv("CONFIG_YAML", Path(__file__).parent / "config.yaml"))
+
+settings = load(yaml_path)
