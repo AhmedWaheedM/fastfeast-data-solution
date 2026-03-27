@@ -28,3 +28,7 @@
 
     return json.loads(content)
     ```
+
+## Notes:
+- We need to select from duckdb with pyarrow
+- check why file processed again

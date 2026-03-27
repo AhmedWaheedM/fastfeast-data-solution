@@ -65,6 +65,7 @@ class SupportedTypes:
 @dataclass
 class Batch:
     schedule: str
+    timeout: int
     supported_types: SupportedTypes
     max_files_per_run: int 
 

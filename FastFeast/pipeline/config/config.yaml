@@ -48,6 +48,7 @@ stream:
 
 batch:
   schedule: "7:00" # time-based
+  timeout: 1 
   supported_types:
     csv: ".csv"
     json: ".json"

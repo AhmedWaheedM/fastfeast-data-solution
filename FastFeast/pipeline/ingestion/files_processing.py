@@ -26,6 +26,7 @@ def init_tracker(conn):
             last_checkpoint TIMESTAMP
         )
     """)
+    
 
 
 def get_file_hash(file_path):
