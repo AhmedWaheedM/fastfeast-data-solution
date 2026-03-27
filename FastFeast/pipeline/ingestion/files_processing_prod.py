@@ -276,3 +276,6 @@ if __name__ == "__main__":
         log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
     else:
         log.error("Batch stage completed with errors.")
+
+    result = get_last_state(conn, "agents.csv")
+    print("##########################################", result) 
