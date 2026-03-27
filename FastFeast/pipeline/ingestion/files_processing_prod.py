@@ -110,7 +110,7 @@ def read_and_filter(file_path, last_checkpoint):
         filtered = conn.execute("SELECT * FROM temp").arrow()
     else:
         filtered = conn.execute(
-            "SELECT * FROM temp WHERE updated_date > ?",
+            "SELECT * FROM temp WHERE updated_at > ?",
             (last_checkpoint,)
         ).arrow()
     conn.close()
@@ -119,7 +119,7 @@ def read_and_filter(file_path, last_checkpoint):
     max_updated = None
     if len(filtered) > 0:
         # Get the column as PyArrow array
-        dates = filtered.column('updated_date')
+        dates = filtered.column('updated_at')
         valid = dates.is_valid()
         if valid.any():
             max_updated = dates.filter(valid).max().as_py()
@@ -270,3 +270,6 @@ if __name__ == "__main__":
         log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
     else:
         log.error("Batch stage completed with errors.")
+
+    result = get_last_state(conn, "agents.csv")
+    print("##########################################", result) 
