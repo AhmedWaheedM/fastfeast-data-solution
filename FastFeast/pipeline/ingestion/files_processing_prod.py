@@ -83,54 +83,51 @@ def load_clean_json(file_path):
 # ----------------------------------------------------------------------
 def read_and_filter(file_path, last_checkpoint):
     path = Path(file_path)
-    print("######File Path:######",path)
-    #batch_dir = Path(config_settings.paths.batch_dir)
+    print("######File Path:######", path)
 
     st = config_settings.batch.supported_types
 
-    #if path.suffix == '.csv':
     if path.suffix == st.csv:
         table = pv.read_csv(str(path))
-    #elif path.suffix == '.json':
     elif path.suffix == st.json:
-        #table = pj.read_json(str(path))
         with open(path, 'r') as f:
             data = load_clean_json(path)
             table = pa.Table.from_pylist(data)
-
     else:
         log.warning(f"Unsupported format: {path.suffix}")
+        return None, None
 
-    # If no updated_date column, load everything
-    #if 'updated_date' not in metadata_settings.batch:
-    if not any(f for f in metadata_settings.batch if any(c.name == 'updated_at' for c in f.columns)):
-        ##log.warning(f"No 'updated_date' column in {path.name}. Loading all records.")
+    # Check if updated_at column exists in the ACTUAL table
+    if 'updated_at' not in table.column_names:
+        log.warning(f"No 'updated_at' column in {path.name}. Loading all records.")
         return table, datetime.fromtimestamp(path.stat().st_mtime)
 
     # Use DuckDB for date filtering
     conn = duckdb.connect()
     conn.register('temp', table)
     if last_checkpoint is None:
-        filtered = conn.execute("SELECT * FROM temp").arrow()
+        result = conn.execute("SELECT * FROM temp")
+        filtered = result.to_arrow_table()  # Replace deprecated fetch_arrow_table()
     else:
-        filtered = conn.execute(
-            "SELECT * FROM temp WHERE updated_at > ?",
-            (last_checkpoint,)
-        ).arrow()
+        checkpoint_str = last_checkpoint.strftime("%Y-%m-%d %H:%M:%S")
+        result = conn.execute(
+            "SELECT * FROM temp WHERE CAST(updated_at AS TIMESTAMP) > CAST(? AS TIMESTAMP)",
+            (checkpoint_str,)
+        )
+        filtered = result.to_arrow_table()
     conn.close()
 
-    # Compute max updated_date
+    # Compute max updated_at using PyArrow compute
     max_updated = None
-    if len(filtered) > 0:
-        # Get the column as PyArrow array
+    if filtered.num_rows > 0:
+        import pyarrow.compute as pc
         dates = filtered.column('updated_at')
-        valid = dates.is_valid()
-        if valid.any():
-            max_updated = dates.filter(valid).max().as_py()
-            print("😍🐱‍🐉", max_updated)
+        # pc.max automatically handles nulls
+        max_scalar = pc.max(dates)
+        if max_scalar is not None:
+            max_updated = max_scalar.as_py()
 
     return filtered, max_updated
-
 
 # ----------------------------------------------------------------------
 # Upsert bronze table (overwrite by a primary key)
@@ -258,6 +255,9 @@ if __name__ == "__main__":
 
     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
     conn = duckdb.connect("fastfeast.duckdb")
+    # conn.execute("""
+    #    delete FROM batch_file_tracker
+    # """)
     result=conn.execute("""
        SELECT * FROM batch_file_tracker
     """).fetchall()
