@@ -265,14 +265,14 @@ if __name__ == "__main__":
         for f in metadata_settings.batch
     }
 
-    success = process_all_batch_files("data/input/batch", EXPECTED_FILES, PK_MAPPING, "fastfeast.duckdb")
+    success = process_all_batch_files(batch_dir, EXPECTED_FILES, PK_MAPPING, "fastfeast.duckdb")
     
     conn = duckdb.connect("fastfeast.duckdb")
     result=conn.execute("""
        SELECT * FROM batch_file_tracker
-    """)
-    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-    print("################",result)
+    """).fetchall()
+    # print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+    print(result)
     # if success:
     #     log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
     # else:
