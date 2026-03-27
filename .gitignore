@@ -1,9 +1,9 @@
 # Data files
-#data/
+data/
 data_input/
 data_archive/
 docs/
-test/
+#test/
 
 # Databases
 *.duckdb
