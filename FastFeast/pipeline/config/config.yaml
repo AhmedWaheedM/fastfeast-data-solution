@@ -6,7 +6,7 @@ database:
 
 paths:
   master_dir: /data/master/
-  batch_dir: data/input/batch/
+  batch_dir: FastFeast/data/input/batch/
   stream_dir: /data/input/stream/
   output_dir: /data/output/
   log_file: /output/
@@ -42,11 +42,15 @@ alerts:
 
 stream:
   poll_interval_sec: 30      # event-based, check every 30 seconds
-  file_pattern: ["*.csv", "*.json"] 
+  supported_types:
+    csv: "*.csv"
+    json: "*.json"
 
 batch:
   schedule: "7:00" # time-based
-  file_pattern: ["*.csv", "*.json"] 
+  supported_types:
+    csv: ".csv"
+    json: ".json"
   max_files_per_run: 10   
 # this will be detected through experience with data, or we can calc the time for each batch
 # and take the batch with the best time 

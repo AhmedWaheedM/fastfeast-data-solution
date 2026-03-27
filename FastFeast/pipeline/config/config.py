@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import yaml
 from pathlib import Path
 import os
+from dacite import from_dict, Config
+
 
 @dataclass
 class Database:
@@ -56,15 +58,21 @@ class Alerts:
   on_fail: bool
 
 @dataclass
-class Stream:
-  poll_interval_sec: int     
-  file_pattern: str 
+class SupportedTypes:
+   csv: str
+   json: str
 
 @dataclass
 class Batch:
-  schedule: str
-  file_pattern: str 
-  max_files_per_run: int 
+    schedule: str
+    supported_types: SupportedTypes
+    max_files_per_run: int 
+
+@dataclass
+class Stream:
+   poll_interval_sec: int     
+   supported_types: SupportedTypes
+
 @dataclass
 class Threshold:
    max_open: int
@@ -88,19 +96,13 @@ def load(path: str) -> Settings:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
-    return Settings(
-        database=Database(**data["database"]),
-        paths=Paths(**data["paths"]),
-        pipeline=Pipeline(**data["pipeline"]),
-        datetime_handling=Datetime(**data["datetime_handling"]),
-        logging=Logging(**data["logging"]),
-        alerts=Alerts(**data["alerts"]),
-        stream=Stream(**data["stream"]),
-        batch=Batch(**data["batch"]),
-        threshold=Threshold(**data["threshold"])
+    return from_dict(
+        data_class=Settings,
+        data=data,
+        config=Config(strict=True) 
     )
 
-# Set path of config.yaml and call load function
+#Set path of config.yaml and call load function
 yaml_path = Path(os.getenv("CONFIG_YAML", Path(__file__).parent / "config.yaml"))
 
-settings = load(yaml_path)
+config_settings = load(yaml_path)
