@@ -17,7 +17,6 @@ from FastFeast.pipeline.config.config import config_settings
 
 # ----------------------------------------------------------------------
 # Tracking table
-
 # ----------------------------------------------------------------------
 def init_tracker(conn):
     conn.execute("""
@@ -84,12 +83,17 @@ def load_clean_json(file_path):
 # ----------------------------------------------------------------------
 def read_and_filter(file_path, last_checkpoint):
     path = Path(file_path)
+    print("######File Path:######",path)
+    #batch_dir = Path(config_settings.paths.batch_dir)
 
     st = config_settings.batch.supported_types
 
+    #if path.suffix == '.csv':
     if path.suffix == st.csv:
         table = pv.read_csv(str(path))
+    #elif path.suffix == '.json':
     elif path.suffix == st.json:
+        #table = pj.read_json(str(path))
         with open(path, 'r') as f:
             data = load_clean_json(path)
             table = pa.Table.from_pylist(data)
@@ -99,9 +103,9 @@ def read_and_filter(file_path, last_checkpoint):
 
     # If no updated_date column, load everything
     #if 'updated_date' not in metadata_settings.batch:
-    # if not any(f for f in metadata_settings.batch if any(c.name == 'updated_date' for c in f.columns)):
-    #     log.warning(f"No 'updated_date' column in {path.name}. Loading all records.")
-    #     return table, None
+    if not any(f for f in metadata_settings.batch if any(c.name == 'updated_at' for c in f.columns)):
+        ##log.warning(f"No 'updated_date' column in {path.name}. Loading all records.")
+        return table, datetime.fromtimestamp(path.stat().st_mtime)
 
     # Use DuckDB for date filtering
     conn = duckdb.connect()
@@ -110,7 +114,7 @@ def read_and_filter(file_path, last_checkpoint):
         filtered = conn.execute("SELECT * FROM temp").arrow()
     else:
         filtered = conn.execute(
-            "SELECT * FROM temp WHERE updated_date > ?",
+            "SELECT * FROM temp WHERE updated_at > ?",
             (last_checkpoint,)
         ).arrow()
     conn.close()
@@ -119,13 +123,14 @@ def read_and_filter(file_path, last_checkpoint):
     max_updated = None
     if len(filtered) > 0:
         # Get the column as PyArrow array
-        dates = filtered.column('updated_date')
+        dates = filtered.column('updated_at')
         valid = dates.is_valid()
         if valid.any():
             max_updated = dates.filter(valid).max().as_py()
+            print("😍🐱‍🐉", max_updated)
 
     return filtered, max_updated
- 
+
 
 # ----------------------------------------------------------------------
 # Upsert bronze table (overwrite by a primary key)
@@ -250,6 +255,7 @@ def find_functions(obj):
 # Test
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
+
     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
     conn = duckdb.connect("fastfeast.duckdb")
     result=conn.execute("""
@@ -257,7 +263,7 @@ if __name__ == "__main__":
     """).fetchall()
     print(result)
     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
-    
+
     batch_dir = Path(config_settings.paths.batch_dir)
     EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
     PK_MAPPING = {
