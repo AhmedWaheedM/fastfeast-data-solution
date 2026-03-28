@@ -71,10 +71,7 @@ def wait_for_file(file_path, timeout_sec=60):
 def load_clean_json(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
-
-    # Replace NaN with null
     content = re.sub(r'\bNaN\b', 'null', content)
-
     return json.loads(content)
 
 
@@ -83,8 +80,6 @@ def load_clean_json(file_path):
 # ----------------------------------------------------------------------
 def read_and_filter(file_path, last_checkpoint):
     path = Path(file_path)
-    print("######File Path:######", path)
-
     st = config_settings.batch.supported_types
 
     if path.suffix == st.csv:
@@ -97,17 +92,14 @@ def read_and_filter(file_path, last_checkpoint):
         log.warning(f"Unsupported format: {path.suffix}")
         return None, None
 
-    # Check if updated_at column exists in the ACTUAL table
     if 'updated_at' not in table.column_names:
-        log.warning(f"No 'updated_at' column in {path.name}. Loading all records.")
         return table, datetime.fromtimestamp(path.stat().st_mtime)
 
-    # Use DuckDB for date filtering
     conn = duckdb.connect()
     conn.register('temp', table)
     if last_checkpoint is None:
         result = conn.execute("SELECT * FROM temp")
-        filtered = result.to_arrow_table()  # Replace deprecated fetch_arrow_table()
+        filtered = result.to_arrow_table()
     else:
         checkpoint_str = last_checkpoint.strftime("%Y-%m-%d %H:%M:%S")
         result = conn.execute(
@@ -117,12 +109,10 @@ def read_and_filter(file_path, last_checkpoint):
         filtered = result.to_arrow_table()
     conn.close()
 
-    # Compute max updated_at using PyArrow compute
     max_updated = None
     if filtered.num_rows > 0:
         import pyarrow.compute as pc
         dates = filtered.column('updated_at')
-        # pc.max automatically handles nulls
         max_scalar = pc.max(dates)
         if max_scalar is not None:
             max_updated = max_scalar.as_py()
@@ -135,7 +125,6 @@ def read_and_filter(file_path, last_checkpoint):
 def upsert_bronze(conn, table_name, arrow_table):
     if len(arrow_table) == 0:
         return
-    # Create table if not exists
     conn.execute(f"DROP TABLE IF EXISTS {table_name}")
     conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM arrow_table WHERE 1=0")
     conn.register("temp", arrow_table)
@@ -150,41 +139,29 @@ def process_file(file_path, db_path):
     path = Path(file_path)
     file_name = path.name
 
-    # 1. Wait for file (1 minute)
     if not wait_for_file(file_path):
         log.warning(f"File missing after 60s: {file_name}")
-        return True   # missing is not an error
-
+        return True 
     conn = duckdb.connect(db_path)
     init_tracker(conn)
     try:
-        # 2. Get hash and last state
         new_hash = get_file_hash(file_path) 
         last_hash, last_checkpoint = get_last_state(conn, file_name)
 
-        # 3. If unchanged, skip
         if last_hash == new_hash:
-            log.info(f"File unchanged: {file_name}")
             return True
 
-        # 4. Read new/updated records
         new_records, max_updated = read_and_filter(file_path, last_checkpoint)
 
         if len(new_records) == 0:
-            # No new records, just update hash
             update_state(conn, file_name, new_hash, last_checkpoint)
-            log.info(f"No new records in {file_name}, updated hash only")
             return True
 
-        # 5. Upsert into bronze
         bronze_table = f"bronze_{path.stem}"
         upsert_bronze(conn, bronze_table, new_records)
 
-        # 6. Update tracker
         new_checkpoint = max_updated if max_updated is not None else last_checkpoint
         update_state(conn, file_name, new_hash, new_checkpoint)
-
-        log.info(f"Processed {len(new_records)} rows from {file_name}, checkpoint={new_checkpoint}")
         return True
 
     except Exception as e:
@@ -227,30 +204,30 @@ def process_all_batch_files(batch_dir, file_list, db_path):
 
 
 
-# ----------------------------------------------------------------------
-# Test
-# ----------------------------------------------------------------------
-if __name__ == "__main__":
+# # ----------------------------------------------------------------------
+# # Test
+# # ----------------------------------------------------------------------
+# if __name__ == "__main__":
 
-    print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
-    conn = duckdb.connect("fastfeast.duckdb")
-    # conn.execute("""
-    #    delete FROM batch_file_tracker
-    # """)
-    result=conn.execute("""
-       SELECT * FROM batch_file_tracker
-    """).fetchall()
-    print(result)
-    print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
+#     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
+#     conn = duckdb.connect("fastfeast.duckdb")
+#     # conn.execute("""
+#     #    delete FROM batch_file_tracker
+#     # """)
+#     result=conn.execute("""
+#        SELECT * FROM batch_file_tracker
+#     """).fetchall()
+#     print(result)
+#     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
 
-    batch_dir = Path(config_settings.paths.batch_dir)
-    EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
+#     batch_dir = Path(config_settings.paths.batch_dir)
+#     EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
 
-    success = process_all_batch_files("data/input/batch", EXPECTED_FILES, "fastfeast.duckdb")
-    if success:
-        log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
-    else:
-        log.error("Batch stage completed with errors.")
+#     success = process_all_batch_files("data/input/batch", EXPECTED_FILES, "fastfeast.duckdb")
+#     if success:
+#         log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
+#     else:
+#         log.error("Batch stage completed with errors.")
 
-    result = get_last_state(conn, "agents.csv")
-    print("##########################################", result) 
+#     result = get_last_state(conn, "agents.csv")
+#     print("##########################################", result) 
