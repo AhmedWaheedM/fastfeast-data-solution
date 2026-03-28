@@ -132,18 +132,13 @@ def read_and_filter(file_path, last_checkpoint):
 # ----------------------------------------------------------------------
 # Upsert bronze table (overwrite by a primary key)
 # ----------------------------------------------------------------------
-def upsert_bronze(conn, table_name, arrow_table, pk_col):
+def upsert_bronze(conn, table_name, arrow_table):
     if len(arrow_table) == 0:
         return
     # Create table if not exists
-    conn.execute(f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM arrow_table WHERE 1=0")
+    conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+    conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM arrow_table WHERE 1=0")
     conn.register("temp", arrow_table)
-    # Delete existing rows with matching PK
-    conn.execute(f"""
-        DELETE FROM {table_name} t
-        USING temp u
-        WHERE t.{pk_col} = u.{pk_col}
-    """)
     conn.execute(f"INSERT INTO {table_name} SELECT * FROM temp")
     conn.unregister("temp")
 
@@ -151,7 +146,7 @@ def upsert_bronze(conn, table_name, arrow_table, pk_col):
 # ----------------------------------------------------------------------
 # Process a single file (called in a thread)
 # ----------------------------------------------------------------------
-def process_file(file_path, pk_col, db_path):
+def process_file(file_path, db_path):
     path = Path(file_path)
     file_name = path.name
 
@@ -183,7 +178,7 @@ def process_file(file_path, pk_col, db_path):
 
         # 5. Upsert into bronze
         bronze_table = f"bronze_{path.stem}"
-        upsert_bronze(conn, bronze_table, new_records, pk_col)
+        upsert_bronze(conn, bronze_table, new_records)
 
         # 6. Update tracker
         new_checkpoint = max_updated if max_updated is not None else last_checkpoint
@@ -202,7 +197,7 @@ def process_file(file_path, pk_col, db_path):
 # ----------------------------------------------------------------------
 # Process all files in parallel
 # ----------------------------------------------------------------------
-def process_all_batch_files(batch_dir, file_list, pk_mapping, db_path):
+def process_all_batch_files(batch_dir, file_list, db_path):
     today = datetime.now().date()
     batch_dir = Path(config_settings.paths.batch_dir)
 
@@ -217,12 +212,8 @@ def process_all_batch_files(batch_dir, file_list, pk_mapping, db_path):
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
         for file_name in file_list:
-            pk_col = pk_mapping.get(file_name)
-            if not pk_col:
-                log.warning(f"No PK column defined for {file_name}, skipping")
-                continue
             file_path = today_folder / file_name
-            futures.append(executor.submit(process_file, str(file_path), pk_col, db_path))
+            futures.append(executor.submit(process_file, str(file_path), db_path))
 
         for future in as_completed(futures):
             try:
@@ -234,19 +225,7 @@ def process_all_batch_files(batch_dir, file_list, pk_mapping, db_path):
 
     return not any_error
 
-# ----------------------------------------------------------------------
-# Debug
-# ----------------------------------------------------------------------
 
-def find_functions(obj):
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if callable(v):
-                print("Function found in key:", k)
-            find_functions(v)
-    elif isinstance(obj, list):
-        for x in obj:
-            find_functions(x)
 
 # ----------------------------------------------------------------------
 # Test
@@ -266,12 +245,8 @@ if __name__ == "__main__":
 
     batch_dir = Path(config_settings.paths.batch_dir)
     EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
-    PK_MAPPING = {
-        f.file_name: next((c.name for c in f.columns if getattr(c, "pk", False)), None)
-        for f in metadata_settings.batch
-    }
 
-    success = process_all_batch_files("data/input/batch", EXPECTED_FILES, PK_MAPPING, "fastfeast.duckdb")
+    success = process_all_batch_files("data/input/batch", EXPECTED_FILES, "fastfeast.duckdb")
     if success:
         log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
     else:
