@@ -1,4 +1,3 @@
-import hashlib
 import time
 import duckdb
 import json
@@ -18,51 +17,18 @@ from FastFeast.pipeline.config.config import config_settings
 # ----------------------------------------------------------------------
 # Tracking table
 # ----------------------------------------------------------------------
-def init_tracker(conn):
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS batch_file_tracker (
-            file_name VARCHAR PRIMARY KEY,
-            last_hash VARCHAR,
-            last_checkpoint TIMESTAMP
-        )
-    """)
-    
 
 
-def get_file_hash(file_path):
-    sha = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
-            sha.update(chunk)
-    return sha.hexdigest()
 
 
-def get_last_state(conn, file_name):
-    row = conn.execute(
-        "SELECT last_hash, last_checkpoint FROM batch_file_tracker WHERE file_name = ?",
-        (file_name,)
-    ).fetchone()
-    return row if row else (None, None)
 
 
-def update_state(conn, file_name, file_hash, checkpoint):
-    conn.execute("""
-        INSERT OR REPLACE INTO batch_file_tracker (file_name, last_hash, last_checkpoint)
-        VALUES (?, ?, ?)
-    """, (file_name, file_hash, checkpoint))
 
 
 # ----------------------------------------------------------------------
 # Wait for file
 # ----------------------------------------------------------------------
-def wait_for_file(file_path, timeout_sec=config_settings.pipeline.time_wait):
-    path = Path(file_path)
-    start = time.time()
-    while not path.exists():
-        if time.time() - start > timeout_sec:
-            return False
-        time.sleep(1)
-    return True
+
 
 # ----------------------------------------------------------------------
 # Clean unexpected values like : Nan
@@ -143,7 +109,6 @@ def process_file(file_path, db_path):
         log.warning(f"File missing after 60s: {file_name}")
         return True 
     conn = duckdb.connect(db_path)
-    init_tracker(conn)
     try:
         new_hash = get_file_hash(file_path) 
         last_hash, last_checkpoint = get_last_state(conn, file_name)
@@ -206,16 +171,16 @@ def process_all_batch_files(batch_dir, file_list, db_path):
 
 
 
-# # ----------------------------------------------------------------------
-# # Test
-# # ----------------------------------------------------------------------
-# if __name__ == "__main__":
+# ----------------------------------------------------------------------
+# Test
+# ----------------------------------------------------------------------
+if __name__ == "__main__":
 
-#     batch_dir = Path(config_settings.paths.batch_dir)
-#     EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
+    batch_dir = Path(config_settings.paths.batch_dir)
+    EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
 
-#     success = process_all_batch_files(batch_dir, EXPECTED_FILES, config_settings.database.db_name)
-#     if success:
-#         log.info("Succeded: Batch stage completed WITHOUT errors.")
-#     else:
-#         log.error("Failed: Batch stage completed WITH errors.")
+    success = process_all_batch_files(batch_dir, EXPECTED_FILES, config_settings.database.db_name)
+    if success:
+        log.info("Succeded: Batch stage completed WITHOUT errors.")
+    else:
+        log.error("Failed: Batch stage completed WITH errors.")
