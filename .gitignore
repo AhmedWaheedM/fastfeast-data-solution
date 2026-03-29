@@ -2,7 +2,7 @@
 data/
 data_input/
 data_archive/
-docs/
+documentation/
 test/
 
 # Databases
