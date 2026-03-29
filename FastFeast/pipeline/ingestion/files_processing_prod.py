@@ -55,7 +55,7 @@ def update_state(conn, file_name, file_hash, checkpoint):
 # ----------------------------------------------------------------------
 # Wait for file
 # ----------------------------------------------------------------------
-def wait_for_file(file_path, timeout_sec=60):
+def wait_for_file(file_path, timeout_sec=config_settings.pipeline.time_wait):
     path = Path(file_path)
     start = time.time()
     while not path.exists():
@@ -69,7 +69,7 @@ def wait_for_file(file_path, timeout_sec=60):
 # ----------------------------------------------------------------------
 
 def load_clean_json(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, "r", encoding=config_settings.batch.encoding) as f:
         content = f.read()
     content = re.sub(r'\bNaN\b', 'null', content)
     return json.loads(content)
@@ -101,7 +101,7 @@ def read_and_filter(file_path, last_checkpoint):
         result = conn.execute("SELECT * FROM temp")
         filtered = result.to_arrow_table()
     else:
-        checkpoint_str = last_checkpoint.strftime("%Y-%m-%d %H:%M:%S")
+        checkpoint_str = last_checkpoint.strftime(config_settings.datetime_handling.date_time)
         result = conn.execute(
             "SELECT * FROM temp WHERE CAST(updated_at AS TIMESTAMP) > CAST(? AS TIMESTAMP)",
             (checkpoint_str,)
@@ -149,6 +149,7 @@ def process_file(file_path, db_path):
         last_hash, last_checkpoint = get_last_state(conn, file_name)
 
         if last_hash == new_hash:
+            #log.info(f"SKIPPED (no change): {file_name}")
             return True
 
         new_records, max_updated = read_and_filter(file_path, last_checkpoint)
@@ -162,6 +163,7 @@ def process_file(file_path, db_path):
 
         new_checkpoint = max_updated if max_updated is not None else last_checkpoint
         update_state(conn, file_name, new_hash, new_checkpoint)
+        #log.info(f"PROCESSED: {file_name} | rows={new_records.num_rows} | checkpoint={new_checkpoint}")
         return True
 
     except Exception as e:
@@ -177,19 +179,18 @@ def process_file(file_path, db_path):
 def process_all_batch_files(batch_dir, file_list, db_path):
     today = datetime.now().date()
     batch_dir = Path(config_settings.paths.batch_dir)
+    today_folder = Path(batch_dir) / today.strftime(config_settings.datetime_handling.date_key_format)
 
-    today_folder = Path(batch_dir) / today.strftime("%Y-%m-%d")
-    print("Today Date:",today)
-    print("Today Folder:", today_folder)
     if not today_folder.exists():
         log.error(f"Batch folder missing: {today_folder}")
         return False
 
     any_error = False
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=config_settings.pipeline.max_workrs) as executor:
         futures = []
         for file_name in file_list:
             file_path = today_folder / file_name
+            #print(file_name)
             futures.append(executor.submit(process_file, str(file_path), db_path))
 
         for future in as_completed(futures):
@@ -199,6 +200,7 @@ def process_all_batch_files(batch_dir, file_list, db_path):
             except Exception as e:
                 log.error(f"Unexpected thread error: {e}", exc_info=True)
                 any_error = True
+        #print(futures)
 
     return not any_error
 
@@ -209,25 +211,11 @@ def process_all_batch_files(batch_dir, file_list, db_path):
 # # ----------------------------------------------------------------------
 # if __name__ == "__main__":
 
-#     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
-#     conn = duckdb.connect("fastfeast.duckdb")
-#     # conn.execute("""
-#     #    delete FROM batch_file_tracker
-#     # """)
-#     result=conn.execute("""
-#        SELECT * FROM batch_file_tracker
-#     """).fetchall()
-#     print(result)
-#     print("👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵👵")
-
 #     batch_dir = Path(config_settings.paths.batch_dir)
 #     EXPECTED_FILES = [f.file_name for f in metadata_settings.batch]
 
-#     success = process_all_batch_files("data/input/batch", EXPECTED_FILES, "fastfeast.duckdb")
+#     success = process_all_batch_files(batch_dir, EXPECTED_FILES, config_settings.database.db_name)
 #     if success:
-#         log.info("!!!!!!!!!!!!!!!!!!!Batch stage completed without errors.!!!!!!!!!!!!!!!!!!!!")
+#         log.info("Succeded: Batch stage completed WITHOUT errors.")
 #     else:
-#         log.error("Batch stage completed with errors.")
-
-#     result = get_last_state(conn, "agents.csv")
-#     print("##########################################", result) 
+#         log.error("Failed: Batch stage completed WITH errors.")
