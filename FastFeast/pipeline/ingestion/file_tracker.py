@@ -1,9 +1,7 @@
 import uuid 
 from datetime import datetime
 from utilities.db_utils import get_connection
-import logging
-
-log = logging.getLogger('file_tracker')
+from support.logger import pipeline as log
 
 def is_processed(file_path: str) -> bool:
     """
@@ -33,7 +31,7 @@ def mark_processing(file_path: str, run_id: str) -> None:
         """, [file_path, datetime.now(), run_id, datetime.now(), run_id ]
         )
     conn.commit()
-    log.info(f"File marked as processing:", extra={"file_path": file_path, "run_id": run_id})
+    log.info("File marked as processing", file_path=file_path, run_id=run_id)
 
 def mark_processed( file_path: str, status: str, record_count: int, run_id: str) -> None: 
     """
@@ -48,7 +46,12 @@ def mark_processed( file_path: str, status: str, record_count: int, run_id: str)
         """, [status, datetime.now(), record_count, file_path]
     )
     conn.commit()
-    log.info("file marked as processed:", extra={"file_path": file_path, "record_count": record_count, "run_id": run_id})
+    log.info(
+        "File marked as processed",
+        file_path=file_path,
+        record_count=record_count,
+        run_id=run_id,
+    )
 
 def get_current_stage(file_path: str) -> str:
     """
@@ -75,7 +78,7 @@ def update_stage(file_path:str, stage: str, run_id: str) -> None:
         """, [stage, datetime.now(), run_id, file_path] 
     )
     conn.commit()
-    log.info("file stage updated:", extra={"file_path": file_path, "stage": stage, "run_id": run_id})
+    log.info("File stage updated", file_path=file_path, stage=stage, run_id=run_id)
 
 
 def generate_run_id() -> str:
