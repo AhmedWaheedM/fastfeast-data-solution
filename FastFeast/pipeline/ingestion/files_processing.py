@@ -10,9 +10,9 @@ import pyarrow.json as pj
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from pipeline.logger import pipeline as log
-from FastFeast.pipeline.config.metadata import metadata_settings
-from FastFeast.pipeline.config.config import config_settings
+from support.logger import pipeline as log
+from pipeline.config.metadata import metadata_settings
+from pipeline.config.config import config_settings
 
 
 # ----------------------------------------------------------------------

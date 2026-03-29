@@ -6,7 +6,7 @@ database:
 
 paths:
   master_dir: /data/master/
-  batch_dir: FastFeast/data/input/batch/
+  batch_dir: data/input/batch/
   stream_dir: /data/input/stream/
   output_dir: /data/output/
   log_file: /output/
