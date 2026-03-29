@@ -1,7 +1,7 @@
 database:
   type: duckdb             
-  name: fastfeast         
-  file: fastfeast.duckdb  
+  file: fastfeast         
+  db_name: fastfeast.duckdb  
   read_only: false         
 
 paths:
@@ -18,9 +18,10 @@ paths:
 pipeline:
   batch_size: 1000
   retry_attempts: 3
-  #max_threads: 4
+  max_workrs: 4
   log_level: INFO
-  mode : hybrid 
+  mode: hybrid 
+  time_wait: 60
 # every time we run pipeline for test we may change between batch or stream run,
 # also can set this Test : to run pipeline at anytime
 
@@ -28,7 +29,8 @@ datetime_handling:
   extract_date_key: true
   extract_time_key: true
   date_key_format: "%Y-%m-%d"
-  time_key_format: "%H%M%S"
+  time_key_format: "%H:%M:%S"
+  date_time: "%Y-%m-%d %H:%M:%S"
   keep_original_timestamp: true
 
 logging:
@@ -47,12 +49,13 @@ stream:
     json: "*.json"
 
 batch:
-  schedule: "7:00" # time-based
+  schedule: "7:00:00" # time-based
   timeout: 1 
   supported_types:
     csv: ".csv"
     json: ".json"
-  max_files_per_run: 10   
+  max_files_per_run: 10
+  encoding: "utf-8" 
 # this will be detected through experience with data, or we can calc the time for each batch
 # and take the batch with the best time 
 

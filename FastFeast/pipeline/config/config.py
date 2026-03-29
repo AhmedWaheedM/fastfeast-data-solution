@@ -8,7 +8,7 @@ from dacite import from_dict, Config
 @dataclass
 class Database:
     type: str
-    name: str
+    db_name: str
     file: str
     read_only: bool
 
@@ -29,9 +29,10 @@ class Paths:
 class Pipeline:
     batch_size: int
     retry_attempts: int
-    #max_threads: int
+    max_workrs: int
     log_level: str
     mode: str
+    time_wait: int
 
 # @dataclass
 # class Format:
@@ -45,6 +46,7 @@ class Datetime:
     date_key_format: str
     time_key_format: str
     keep_original_timestamp: bool
+    date_time: str
 
 @dataclass
 class Logging:
@@ -67,7 +69,8 @@ class Batch:
     schedule: str
     timeout: int
     supported_types: SupportedTypes
-    max_files_per_run: int 
+    max_files_per_run: int
+    encoding: str
 
 @dataclass
 class Stream:
