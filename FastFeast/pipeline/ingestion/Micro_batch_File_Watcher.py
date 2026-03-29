@@ -6,169 +6,210 @@ import duckdb
 import pyarrow as pa
 from datetime import datetime, date
 from pathlib import Path
+import sys
+
+# ── Path setup ────────────────────────────────────────────────────────────────
+SCRIPT_DIR   = Path(os.path.dirname(os.path.abspath(__file__)))   # pipeline/ingestion/
+PIPELINE_DIR = SCRIPT_DIR.parent                                   # pipeline/
+CONFIG_DIR   = PIPELINE_DIR / "config"                             # pipeline/config/
+
+# Add pipeline/config to sys.path so `import config` resolves correctly
+sys.path.insert(0, str(CONFIG_DIR))
+# Add pipeline/ingestion to sys.path so `import bronze_writer` resolves correctly
+sys.path.insert(0, str(SCRIPT_DIR))
 
 import config
 import bronze_writer
 
-# ---------------- Config ----------------
+# ── Config ────────────────────────────────────────────────────────────────────
+CONFIG_PATH = CONFIG_DIR / "config.yaml"
+cfg         = config.load(str(CONFIG_PATH))
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CFG_PATH = os.path.join(BASE_DIR, "config.yaml")
-cfg      = config.load(CFG_PATH)
-
-STREAM_DIR = os.path.normpath(os.path.join(BASE_DIR, cfg.paths.stream_dir))
-DB_PATH    = os.path.normpath(os.path.join(BASE_DIR, cfg.database.file))
+STREAM_DIR = Path(os.path.normpath(PIPELINE_DIR / cfg.paths.stream_dir))
+DB_PATH    = os.path.normpath(PIPELINE_DIR / cfg.database.file)
 POLL_SEC   = cfg.stream.poll_interval_sec
 
-# ---------------- Logging ----------------
-
+# ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=getattr(logging, cfg.logging.level, logging.INFO),
     format="%(asctime)s  %(levelname)-8s  %(message)s",
     datefmt="%H:%M:%S",
 )
-log = logging.getLogger("monitor")
+log = logging.getLogger("stream_monitor")
 
-# ---------------- DB ----------------
-
+# ── DuckDB Connection ─────────────────────────────────────────────────────────
 con = duckdb.connect(DB_PATH)
-log.info("INIT DB %s", DB_PATH)
+log.info("INIT  DuckDB connected  path=%s", DB_PATH)
 
-# ---------------- Readers ----------------
+# ── File readers ──────────────────────────────────────────────────────────────
+def read_json(path: Path) -> pa.Table:
+    log.debug("READ  opening JSON  path=%s", path)
+    return con.execute(f"SELECT * FROM read_json_auto('{path}')").to_arrow_table()
 
-def read_j(p: Path) -> pa.Table:
-    return con.execute(f"SELECT * FROM read_json_auto('{p}')").to_arrow_table()
+def read_csv(path: Path) -> pa.Table:
+    log.debug("READ  opening CSV   path=%s", path)
+    return con.execute(f"SELECT * FROM read_csv_auto('{path}')").to_arrow_table()
 
-def read_c(p: Path) -> pa.Table:
-    return con.execute(f"SELECT * FROM read_csv_auto('{p}')").to_arrow_table()
-
-READERS = {
-    "orders.json":        read_j,
-    "tickets.csv":        read_c,
-    "ticket_events.json": read_j,
+FILE_READERS = {
+    "orders.json":        read_json,
+    "tickets.csv":        read_csv,
+    "ticket_events.json": read_json,
 }
 
-# ---------------- Hours ----------------
-
-def get_hours(d: str) -> list[Path]:
-    base = Path(STREAM_DIR) / d
+# ── Hour-directory helpers ────────────────────────────────────────────────────
+def hour_dirs(date_str: str) -> list[Path]:
+    """Return all HH/ subdirectories for date_str, sorted ascending."""
+    base = STREAM_DIR / date_str
     if not base.exists():
+        log.debug("POLL  base directory not found yet  path=%s", base)
         return []
-    return sorted(p for p in base.iterdir() if p.is_dir() and p.name.isdigit())
+    dirs = sorted(
+        p for p in base.iterdir()
+        if p.is_dir() and p.name.isdigit()
+    )
+    log.debug("POLL  found %d hour director%s under %s",
+              len(dirs), "y" if len(dirs) == 1 else "ies", base)
+    return dirs
 
-# ---------------- Read File ----------------
+# ── Single-file read ──────────────────────────────────────────────────────────
+def try_read(filepath: Path, seen_files: set) -> pa.Table | None:
+    key  = str(filepath)
+    size = filepath.stat().st_size
 
-def read_file(fp: Path, seen: set) -> pa.Table | None:
-    key = str(fp)
-
-    if fp.stat().st_size == 0:
-        log.warning("SKIP empty %s", fp)
-        seen.add(key)
+    if size == 0:
+        log.warning("SKIP  empty file — nothing to read  path=%s", filepath)
+        seen_files.add(key)
         return None
+
+    log.debug("READ  attempting  path=%s  size=%d bytes", filepath, size)
 
     try:
-        tbl = READERS[fp.name](fp)
-    except Exception as e:
-        log.warning("SKIP bad %s (%s)", fp, e)
+        table = FILE_READERS[filepath.name](filepath)
+    except Exception as exc:
+        log.warning(
+            "SKIP  unreadable file — pipeline continues  path=%s  reason=%s",
+            filepath, exc,
+        )
         return None
 
-    seen.add(key)
-    log.info("OK %s rows=%d cols=%d", fp, tbl.num_rows, tbl.num_columns)
-    return tbl
+    seen_files.add(key)
+    log.info(
+        "READ  ok  path=%s  rows=%d  cols=%d  schema=%s",
+        filepath, table.num_rows, table.num_columns,
+        ", ".join(f"{f.name}:{f.type}" for f in table.schema),
+    )
+    return table
 
-# ---------------- Scan Hour ----------------
+# ── Per-hour scan ─────────────────────────────────────────────────────────────
+def process_hour_dir(hour_dir: Path, seen_files: set) -> dict[str, pa.Table]:
+    results: dict[str, pa.Table] = {}
 
-def scan_hour(hdir: Path, seen: set) -> dict[str, pa.Table]:
-    out = {}
+    for filename in FILE_READERS:
+        filepath = hour_dir / filename
+        key      = str(filepath)
 
-    for fname in READERS:
-        fp = hdir / fname
-        key = str(fp)
-
-        if key in seen:
+        if key in seen_files:
+            log.debug("SKIP  already processed  path=%s", filepath)
             continue
 
-        if not fp.exists():
+        if not filepath.exists():
+            log.debug("WAIT  file not yet present  path=%s", filepath)
             continue
 
-        log.info("FOUND %s", fp)
+        log.info("DETECTED  new file  path=%s", filepath)
 
-        tbl = read_file(fp, seen)
-        if tbl:
-            out[fname.split(".")[0]] = tbl
+        table = try_read(filepath, seen_files)
+        if table is not None:
+            results[filename.split(".")[0]] = table
 
-    return out
+    return results
 
-# ---------------- Handle ----------------
+# ── Downstream dispatch ───────────────────────────────────────────────────────
+def on_new_records(hour: str, batch: dict[str, pa.Table]):
+    for table_name, arrow_table in batch.items():
+        log.info(
+            "DOWNSTREAM  dispatching  hour=%s  table=%-16s  rows=%d  cols=%d",
+            hour, table_name, arrow_table.num_rows, arrow_table.num_columns,
+        )
+        bronze_writer.write(con, table_name, arrow_table, hour)
 
-def handle(hour: str, batch: dict[str, pa.Table]):
-    for name, tbl in batch.items():
-        log.info("WRITE hour=%s table=%s rows=%d", hour, name, tbl.num_rows)
-        bronze_writer.write(con, name, tbl, hour)
+# ── Main polling loop ─────────────────────────────────────────────────────────
+def run(date_str: str, once: bool = False):
+    log.info("=" * 60)
+    log.info("INIT  stream monitor starting")
+    log.info("INIT  date=%s  poll_interval=%ss", date_str, POLL_SEC)
+    log.info("INIT  stream_dir=%s", STREAM_DIR)
+    log.info("INIT  watching for files: %s", ", ".join(FILE_READERS))
+    log.info("=" * 60)
 
-# ---------------- Main Loop ----------------
-
-def start(d: str, once: bool = False):
-    log.info("=" * 50)
-    log.info("START date=%s poll=%ss", d, POLL_SEC)
-    log.info("DIR %s", STREAM_DIR)
-    log.info("=" * 50)
-
-    seen_files = set()
-    seen_hours = set()
+    seen_files: set[str] = set()
+    seen_hours: set[str] = set()
     cycle = 0
 
     try:
         while True:
             cycle += 1
+            log.debug("POLL  cycle=%d  date=%s", cycle, date_str)
 
-            dirs = get_hours(d)
+            dirs = hour_dirs(date_str)
 
             if not dirs:
-                log.info("WAIT no dirs yet")
+                log.info("POLL  cycle=%d  no hour directories present yet — waiting", cycle)
             else:
-                for hdir in dirs:
-                    h = hdir.name
+                for hour_dir in dirs:
+                    hour = hour_dir.name
 
-                    if h not in seen_hours:
-                        seen_hours.add(h)
-                        log.info("NEW HOUR %s", h)
+                    if hour not in seen_hours:
+                        seen_hours.add(hour)
+                        log.info("HOUR  new directory detected  hour=%s  path=%s", hour, hour_dir)
 
-                    batch = scan_hour(hdir, seen_files)
+                    batch = process_hour_dir(hour_dir, seen_files)
 
                     if batch:
-                        log.info("BATCH %s tables=%s", h, list(batch.keys()))
-                        handle(h, batch)
+                        log.info(
+                            "BATCH  hour=%s  new tables=%d  (%s)",
+                            hour, len(batch), ", ".join(batch),
+                        )
+                        on_new_records(hour, batch)
+                    else:
+                        log.debug("POLL  hour=%s  no new files this cycle", hour)
 
             if once:
+                log.info("POLL  --once flag set — exiting after single pass")
                 break
 
+            log.debug("POLL  sleeping %ss before next cycle", POLL_SEC)
             time.sleep(POLL_SEC)
 
     except KeyboardInterrupt:
-        log.info("STOP interrupt")
+        log.info("STOP  keyboard interrupt received — shutting down cleanly")
 
-    log.info("=" * 50)
-    log.info("END cycles=%d files=%d hours=%d",
+    log.info("=" * 60)
+    log.info("STOP  stream monitor finished  cycles_run=%d  files_seen=%d  hours_seen=%d",
              cycle, len(seen_files), len(seen_hours))
-    log.info("=" * 50)
+    log.info("=" * 60)
 
-# ---------------- Entry ----------------
-
+# ── Entry point ───────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Stream monitor")
-    parser.add_argument("--date", default=date.today().isoformat())
-    parser.add_argument("--once", action="store_true")
-
+    parser = argparse.ArgumentParser(description="FastFeast stream directory monitor")
+    parser.add_argument(
+        "--date", default=date.today().isoformat(),
+        help="Date to monitor (YYYY-MM-DD, default: today)",
+    )
+    parser.add_argument(
+        "--once", action="store_true",
+        help="Single pass then exit",
+    )
     args = parser.parse_args()
 
     try:
         datetime.strptime(args.date, "%Y-%m-%d")
     except ValueError:
-        print("Invalid date format (YYYY-MM-DD)")
+        print(f"Invalid date: {args.date}  (use YYYY-MM-DD)")
         return
 
-    start(args.date, once=args.once)
+    run(args.date, once=args.once)
+
 
 if __name__ == "__main__":
     main()
