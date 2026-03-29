@@ -40,7 +40,7 @@ def run_command(cmd, description, verbose=False):
 
 def check_master_data():
     """Check if master data exists."""
-    return os.path.exists("data/master/metadata.json")
+    return os.path.exists("FastFeast/data/master/metadata.json")
 
 
 def main():
