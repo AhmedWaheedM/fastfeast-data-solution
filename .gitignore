@@ -3,7 +3,7 @@ data/
 data_input/
 data_archive/
 documentation/
-test/
+#test/
 
 # Databases
 *.duckdb
