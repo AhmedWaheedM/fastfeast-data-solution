@@ -1,4 +1,3 @@
-import hashlib
 import time
 import duckdb
 import json
@@ -21,40 +20,15 @@ from FastFeast.pipeline.config.config import config_settings
 
 
 
-def get_file_hash(file_path):
-    sha = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
-            sha.update(chunk)
-    return sha.hexdigest()
 
 
-def get_last_state(conn, file_name):
-    row = conn.execute(
-        "SELECT last_hash, last_checkpoint FROM BATCH_FILE_TRACKING WHERE file_name = ?",
-        (file_name,)
-    ).fetchone()
-    return row if row else (None, None)
 
-
-def update_state(conn, file_name, file_hash, checkpoint):
-    conn.execute("""
-        INSERT OR REPLACE INTO BATCH_FILE_TRACKING (file_name, last_hash, last_checkpoint)
-        VALUES (?, ?, ?)
-    """, (file_name, file_hash, checkpoint))
 
 
 # ----------------------------------------------------------------------
 # Wait for file
 # ----------------------------------------------------------------------
-def wait_for_file(file_path, timeout_sec=config_settings.pipeline.time_wait):
-    path = Path(file_path)
-    start = time.time()
-    while not path.exists():
-        if time.time() - start > timeout_sec:
-            return False
-        time.sleep(1)
-    return True
+
 
 # ----------------------------------------------------------------------
 # Clean unexpected values like : Nan
