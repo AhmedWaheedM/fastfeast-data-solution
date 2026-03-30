@@ -105,6 +105,8 @@ def get_stored_hash(con, file_key):
     return row[0] if row else None
 
 
+
+# save hash and increment attempt count
 def save_hash(con, file_key, new_hash):
     con.execute("""
         INSERT INTO FILE_TRACKING (FILE_PATH, FILE_HASH, ATTEMPT_COUNT, STATUS,
@@ -116,7 +118,7 @@ def save_hash(con, file_key, new_hash):
     """, [file_key, new_hash])
     con.commit()
 
-
+# try to acquire the file for processing, returns True if acquired, False if should skip
 def try_acquire(file_key, run_id, current_hash):
     attempts = get_attempts(con, file_key)
     if attempts >= MAX_ATTEMPTS:
