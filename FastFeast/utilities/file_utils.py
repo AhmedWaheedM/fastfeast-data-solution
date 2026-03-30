@@ -1,7 +1,7 @@
 import hashlib
 import time
-from FastFeast.pipeline.config.config import config_settings
-
+from pipeline.config.config import config_settings
+from pathlib import Path
 
 def get_file_hash(file_path):
     sha = hashlib.sha256()
@@ -9,7 +9,6 @@ def get_file_hash(file_path):
         for chunk in iter(lambda: f.read(8192), b''):
             sha.update(chunk)
     return sha.hexdigest()
-
 
 def wait_for_file(file_path, timeout_sec=config_settings.pipeline.time_wait):
     path = Path(file_path)

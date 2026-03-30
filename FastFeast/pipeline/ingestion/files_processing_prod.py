@@ -6,29 +6,15 @@ import json
 import pyarrow as pa
 import pyarrow.csv as pv
 import pyarrow.json as pj
+import pyarrow.compute as pc
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from pipeline.logger import pipeline as log
-from FastFeast.pipeline.config.metadata import metadata_settings
-from FastFeast.pipeline.config.config import config_settings
-
-
-# ----------------------------------------------------------------------
-# Tracking table
-# ----------------------------------------------------------------------
-
-
-
-
-
-
-
-
-# ----------------------------------------------------------------------
-# Wait for file
-# ----------------------------------------------------------------------
-
+from support.logger import pipeline as log
+from pipeline.config.metadata import metadata_settings
+from pipeline.config.config import config_settings
+from utilities.file_utils import get_file_hash, wait_for_file
+from pipeline.ingestion.batch_file_tracker import get_last_state, update_state
 
 # ----------------------------------------------------------------------
 # Clean unexpected values like : Nan
@@ -44,43 +30,52 @@ def load_clean_json(file_path):
 # ----------------------------------------------------------------------
 # Read and filter new/updated records
 # ----------------------------------------------------------------------
+
 def read_and_filter(file_path, last_checkpoint):
     path = Path(file_path)
     st = config_settings.batch.supported_types
 
+    # Read file
     if path.suffix == st.csv:
         table = pv.read_csv(str(path))
     elif path.suffix == st.json:
-        with open(path, 'r') as f:
-            data = load_clean_json(path)
-            table = pa.Table.from_pylist(data)
+        data = load_clean_json(path)
+        table = pa.Table.from_pylist(data)
     else:
         log.warning(f"Unsupported format: {path.suffix}")
         return None, None
 
+    # If no updated_at → return full table + file modified time
     if 'updated_at' not in table.column_names:
         return table, datetime.fromtimestamp(path.stat().st_mtime)
 
-    conn = duckdb.connect()
-    conn.register('temp', table)
-    if last_checkpoint is None:
-        result = conn.execute("SELECT * FROM temp")
-        filtered = result.to_arrow_table()
-    else:
-        checkpoint_str = last_checkpoint.strftime(config_settings.datetime_handling.date_time)
-        result = conn.execute(
-            "SELECT * FROM temp WHERE CAST(updated_at AS TIMESTAMP) > CAST(? AS TIMESTAMP)",
-            (checkpoint_str,)
-        )
-        filtered = result.to_arrow_table()
-    conn.close()
+    updated_col = table['updated_at']
 
+    # Ensure updated_at is timestamp
+    if not pa.types.is_timestamp(updated_col.type):
+        updated_col = pc.cast(updated_col, pa.timestamp('us'))
+
+    # Filtering
+    if last_checkpoint is None:
+        filtered = table
+    else:
+        checkpoint_str = last_checkpoint.strftime(
+            config_settings.datetime_handling.date_time
+        )
+        checkpoint_scalar = pa.scalar(checkpoint_str, type=pa.timestamp('us'))
+
+        mask = pc.greater(updated_col, checkpoint_scalar)
+        filtered = table.filter(mask)
+
+    # Get max(updated_at)
     max_updated = None
     if filtered.num_rows > 0:
-        import pyarrow.compute as pc
-        dates = filtered.column('updated_at')
-        max_scalar = pc.max(dates)
-        if max_scalar is not None:
+        max_scalar = pc.max(
+            pc.cast(filtered['updated_at'], pa.timestamp('us'))
+            if not pa.types.is_timestamp(filtered['updated_at'].type)
+            else filtered['updated_at']
+        )
+        if max_scalar is not None and max_scalar.as_py() is not None:
             max_updated = max_scalar.as_py()
 
     return filtered, max_updated
@@ -111,7 +106,7 @@ def process_file(file_path, db_path):
     conn = duckdb.connect(db_path)
     try:
         new_hash = get_file_hash(file_path) 
-        last_hash, last_checkpoint = get_last_state(conn, file_name)
+        last_hash, last_checkpoint = get_last_state(file_name)
 
         if last_hash == new_hash:
             #log.info(f"SKIPPED (no change): {file_name}")
@@ -120,14 +115,14 @@ def process_file(file_path, db_path):
         new_records, max_updated = read_and_filter(file_path, last_checkpoint)
 
         if len(new_records) == 0:
-            update_state(conn, file_name, new_hash, last_checkpoint)
+            update_state(file_name, new_hash, last_checkpoint)
             return True
 
         bronze_table = f"bronze_{path.stem}"
         upsert_bronze(conn, bronze_table, new_records)
 
         new_checkpoint = max_updated if max_updated is not None else last_checkpoint
-        update_state(conn, file_name, new_hash, new_checkpoint)
+        update_state(file_name, new_hash, new_checkpoint)
         #log.info(f"PROCESSED: {file_name} | rows={new_records.num_rows} | checkpoint={new_checkpoint}")
         return True
 
