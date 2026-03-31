@@ -6,7 +6,8 @@ database:
 
 paths:
   master_dir: /data/master/
-  batch_dir: ../FastFeast/data/input/batch/
+  batch_dir: data/input/batch/
+  dest_base: FastFeast/input_data
   stream_dir: /data/input/stream/
   output_dir: /data/output/
   log_file: /output/
@@ -49,7 +50,7 @@ stream:
     json: "*.json"
 
 batch:
-  schedule: "7:00:00" # time-based
+  schedule: "07:00:00" # time-based
   timeout: 1 
   supported_types:
     csv: ".csv"
