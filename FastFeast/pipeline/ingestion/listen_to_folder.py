@@ -5,10 +5,23 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from FastFeast.support.logger import pipeline as log
-from FastFeast.pipeline.config.config import config_settings
+from FastFeast.pipeline.config.config import load, yaml_path
 from FastFeast.utilities.db_utils import get_connection
 from FastFeast.utilities.file_utils import get_file_hash
 from FastFeast.pipeline.ingestion.file_tracker import mark_processing, generate_run_id
+from FastFeast.dwh.bronze.file_tracking import init_db
+
+
+# ------------------------------------------------------
+# Lazy Config Loader
+# ------------------------------------------------------
+_config = None
+
+def get_config():
+    global _config
+    if _config is None:
+        _config = load(yaml_path)
+    return _config
 
 
 # ------------------------------------------------------
@@ -79,8 +92,10 @@ def process_single_file(file, dest_today, run_id):
 # Get today's folder
 # ------------------------------------------------------
 def get_today_files(run_id):
+    config = get_config()
+
     today = datetime.now().date()
-    today_folder_name = today.strftime(config_settings.datetime_handling.date_key_format)
+    today_folder_name = today.strftime(config.datetime_handling.date_key_format)
 
     source_today = SOURCE_BASE / today_folder_name
     dest_today = DEST_BASE / today_folder_name
@@ -123,28 +138,49 @@ def get_today_files(run_id):
 # ------------------------------------------------------
 # Listener / Scheduler
 # ------------------------------------------------------
-def run_pipeline_listener(start_hour=2):
+def run_pipeline_listener(conn):
+
+    config = get_config()
+
+    # UPDATED: parse "3:00:00"
+    schedule_str = config.batch.schedule  # e.g. "3:00:00"
+    parts = schedule_str.split(":")
+
+    hour = int(parts[0])
+    minute = int(parts[1]) if len(parts) > 1 else 0
+    second = int(parts[2]) if len(parts) > 2 else 0
 
     while True:
         now = datetime.now()
 
-        # generate ONE run_id per pipeline cycle
+        # Build today's scheduled datetime
+        start_time = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+
+        # If already passed → schedule for next day
+        if now >= start_time:
+            start_time = start_time + timedelta(days=1)
+
+        sleep_seconds = (start_time - now).total_seconds()
+
+        log.info(
+            "Pipeline scheduled",
+            current_time=str(now),
+            next_run_time=str(start_time),
+            sleep_seconds=sleep_seconds
+        )
+
+        time.sleep(max(0, sleep_seconds))
+
         run_id = generate_run_id()
-
-        start_time = now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
-
-        if now < start_time:
-            sleep_seconds = (start_time - now).total_seconds()
-            log.info("Waiting for pipeline start time", sleep_seconds=sleep_seconds)
-            time.sleep(sleep_seconds)
-
-        log.info("Pipeline listener started for the day", run_id=run_id)
+        log.info("Pipeline started", run_id=run_id)
 
         window_start = datetime.now()
         timeout = timedelta(hours=1)
 
+        config = get_config()
+
         source_folder_name = datetime.now().date().strftime(
-            config_settings.datetime_handling.date_key_format
+            config.datetime_handling.date_key_format
         )
         source_today = SOURCE_BASE / source_folder_name
 
@@ -152,31 +188,21 @@ def run_pipeline_listener(start_hour=2):
 
         while datetime.now() - window_start < timeout:
             if source_today.exists():
-                log.info("Source folder detected, starting pipeline", path=str(source_today), run_id=run_id)
+                log.info("Source folder detected", path=str(source_today), run_id=run_id)
                 success = get_today_files(run_id)
                 processed = True
                 break
             else:
-                log.info("Source folder not found yet, retrying in 30 seconds", run_id=run_id)
+                log.info("Source folder not found yet, retrying...", run_id=run_id)
                 time.sleep(30)
 
         if not processed:
-            log.info("Source folder NOT found within 1 hour. Skipping to next day.", run_id=run_id)
-
-        next_day = (datetime.now() + timedelta(days=1)).replace(
-            hour=start_hour, minute=0, second=0, microsecond=0
-        )
-
-        sleep_seconds = (next_day - datetime.now()).total_seconds()
-        log.info("Sleeping until next day pipeline start", sleep_seconds=sleep_seconds, run_id=run_id)
-
-        time.sleep(max(0, sleep_seconds))
+            log.info("Source folder NOT found within 1 hour. Skipping run.", run_id=run_id)
 
 
 # ------------------------------------------------------
 # Main
 # ------------------------------------------------------
 if __name__ == "__main__":
-
-    # Run listener instead of one-time execution
-    run_pipeline_listener(start_hour=2)
+    conn = init_db("pipeline.duckdb")
+    run_pipeline_listener(conn)
