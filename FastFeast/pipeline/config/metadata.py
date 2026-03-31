@@ -30,6 +30,7 @@ class FileMeta:
 @dataclass
 class Settings:
     batch: List[FileMeta]
+    stream: List[FileMeta]
 
 def load(path: str) -> Settings:
     with open(path, "r") as f:
