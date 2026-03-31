@@ -5,32 +5,31 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from FastFeast.support.logger import pipeline as log
-from FastFeast.pipeline.config.config import load, yaml_path
 from FastFeast.utilities.db_utils import get_connection
 from FastFeast.utilities.file_utils import get_file_hash
+from FastFeast.pipeline.config.config import get_config
 from FastFeast.pipeline.ingestion.file_tracker import mark_processing, generate_run_id
-from FastFeast.dwh.bronze.file_tracking import init_db
+from FastFeast.pipeline.bridge.pyarrow_table import load_file
 
 
 # ------------------------------------------------------
 # Lazy Config Loader
 # ------------------------------------------------------
-_config = None
 
-def get_config():
-    global _config
-    if _config is None:
-        _config = load(yaml_path)
-    return _config
+config = get_config()
 
+BASE_DIR = Path(__file__).resolve().parents[3]
+
+SOURCE_BASE = BASE_DIR / config.paths.batch_dir
+DEST_BASE = BASE_DIR / config.paths.dest_base
 
 # ------------------------------------------------------
 # Paths
 # ------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parents[3]
+# BASE_DIR = Path(__file__).resolve().parents[3]
 
-SOURCE_BASE = BASE_DIR / "data" / "input" / "batch"
-DEST_BASE = BASE_DIR / "FastFeast" / "input_data"
+# SOURCE_BASE = BASE_DIR / "data" / "input" / "batch"
+# DEST_BASE = BASE_DIR / "FastFeast" / "input_data"
 
 
 # ----------------------------------------------------------------------
@@ -49,8 +48,9 @@ def wait_for_file(file_path, timeout_sec=60):
 # ------------------------------------------------------
 # Process single file
 # ------------------------------------------------------
-def process_single_file(file, dest_today, run_id):
-    conn = get_connection()
+def process_single_file(file, dest_today, run_id, conn):
+
+    #conn = get_connection()
 
     try:
         target_file = dest_today / file.name
@@ -61,16 +61,31 @@ def process_single_file(file, dest_today, run_id):
 
         shutil.copy2(file, target_file)
 
-        file_hash = get_file_hash(file)
-        row_count = None
+        #load as PyArrow table
+        table = load_file(target_file)
 
-        log.info(
-            "Processing file",
-            file=str(target_file),
-            hash=file_hash,
-            rows=row_count,
-            run_id=run_id
-        )
+        if table is None:
+            log.warning("Failed to load file as table", file=file.name)
+            return False
+
+        row_count = table.num_rows
+
+        file_hash = get_file_hash(file)
+
+        # log.info(
+        #     "Processing file",
+        #     file=str(target_file),
+        #     hash=file_hash,
+        #     rows=row_count,
+        #     run_id=run_id
+        # )
+        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
+        # print("Schema:", table.schema)
+        # print("Rows:", table.num_rows)
+        # print(table.to_pandas().head())
+        # print("-" * 50)
+        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
+
 
         mark_processing(
             file_path=str(target_file),
@@ -78,13 +93,16 @@ def process_single_file(file, dest_today, run_id):
             record_count=row_count,
             run_id=run_id
         )
+        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
+        # print("COUNT OF ROWS:", row_count)
+        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
 
-        log.info("File copied + tracked", file=file.name)
+        #log.info("File copied + converted to table", file=file.name)
 
         return True
 
     except Exception as e:
-        log.error("Error processing file", file=file.name, error=str(e), exc_info=True)
+        #log.error("Error processing file", file=file.name, error=str(e), exc_info=True)
         return False
 
 
@@ -93,6 +111,8 @@ def process_single_file(file, dest_today, run_id):
 # ------------------------------------------------------
 def get_today_files(run_id):
     config = get_config()
+
+    conn = get_connection()
 
     today = datetime.now().date()
     today_folder_name = today.strftime(config.datetime_handling.date_key_format)
@@ -114,7 +134,7 @@ def get_today_files(run_id):
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
-            executor.submit(process_single_file, file, dest_today, run_id): file
+            executor.submit(process_single_file, file, dest_today, run_id, conn): file
             for file in files
         }
 
@@ -138,7 +158,7 @@ def get_today_files(run_id):
 # ------------------------------------------------------
 # Listener / Scheduler
 # ------------------------------------------------------
-def run_pipeline_listener(conn):
+def run_pipeline_listener():
 
     config = get_config()
 
@@ -169,7 +189,7 @@ def run_pipeline_listener(conn):
             sleep_seconds=sleep_seconds
         )
 
-        time.sleep(max(0, sleep_seconds))
+        time.sleep(max(0, sleep_seconds)) #to avoide crash is seconds= 0
 
         run_id = generate_run_id()
         log.info("Pipeline started", run_id=run_id)
@@ -204,5 +224,4 @@ def run_pipeline_listener(conn):
 # Main
 # ------------------------------------------------------
 if __name__ == "__main__":
-    conn = init_db("pipeline.duckdb")
-    run_pipeline_listener(conn)
+    run_pipeline_listener()
