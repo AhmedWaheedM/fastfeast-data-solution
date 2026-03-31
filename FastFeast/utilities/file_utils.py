@@ -1,6 +1,6 @@
 import hashlib
 import time
-from pipeline.config.config import config_settings
+from FastFeast.pipeline.config.config import config_settings
 from pathlib import Path
 
 def get_file_hash(file_path):

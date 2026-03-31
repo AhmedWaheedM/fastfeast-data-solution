@@ -1,7 +1,7 @@
 import uuid 
 from datetime import datetime
-from utilities.db_utils import get_connection
-from support.logger import pipeline as log
+from FastFeast.utilities.db_utils import get_connection
+from FastFeast.support.logger import pipeline as log
 
 def is_processed(file_path: str) -> bool:
     """
@@ -14,24 +14,39 @@ def is_processed(file_path: str) -> bool:
     ).fetchone()
     return result is not None and result[0] == 'SUCCESS'
 
-def mark_processing(file_path: str, run_id: str) -> None:
-    """
-    Mark a file as being processed. This should be called at the start of processing. 
-    catches crashes and ensures we don't have multiple runs processing the same file
-    """
+
+from datetime import datetime
+from FastFeast.utilities.db_utils import get_connection
+from FastFeast.support.logger import pipeline as log
+
+def mark_processing(file_path: str, file_hash: str, record_count: int, run_id: str) -> None:
     conn = get_connection()
+
     conn.execute(
         """
-        INSERT INTO FILE_TRACKING (FILE_PATH, PROCESSED_AT, STATUS, RECORD_COUNT, PIPELINE_RUN_ID)
-        VALUES (?, ?, 'PROCESSING', 0, ?)
-        ON CONFLICT (FILE_PATH) DO UPDATE SET 
-            STATUS = 'PROCESSING',
-            PROCESSED_AT = ? ,
-            PIPELINE_RUN_ID = ?
-        """, [file_path, datetime.now(), run_id, datetime.now(), run_id ]
-        )
-    conn.commit()
+        INSERT INTO FILE_TRACKING 
+        (FILE_PATH, PROCESSED_AT, STATUS, CURRENT_STAGE, LAST_HASH, RECORD_COUNT, PIPELINE_RUN_ID)
+        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?)
+        ON CONFLICT (FILE_PATH) DO UPDATE SET
+            PROCESSED_AT = excluded.PROCESSED_AT,
+            STATUS = CASE 
+                WHEN FILE_TRACKING.LAST_HASH != excluded.LAST_HASH THEN 'PROCESSING'
+                ELSE FILE_TRACKING.STATUS
+            END,
+            CURRENT_STAGE = CASE 
+                WHEN FILE_TRACKING.LAST_HASH != excluded.LAST_HASH THEN 'PENDING'
+                ELSE FILE_TRACKING.CURRENT_STAGE
+            END,
+            LAST_HASH = excluded.LAST_HASH,
+            RECORD_COUNT = excluded.RECORD_COUNT,
+            PIPELINE_RUN_ID = excluded.PIPELINE_RUN_ID
+        """,
+        [file_path, datetime.now(), file_hash, record_count, run_id]
+    )
+
     log.info("File marked as processing", file_path=file_path, run_id=run_id)
+    
+
 
 def mark_processed( file_path: str, status: str, record_count: int, run_id: str) -> None: 
     """
@@ -45,13 +60,14 @@ def mark_processed( file_path: str, status: str, record_count: int, run_id: str)
         WHERE FILE_PATH = ?
         """, [status, datetime.now(), record_count, file_path]
     )
-    conn.commit()
+    #conn.commit()
     log.info(
         "File marked as processed",
         file_path=file_path,
         record_count=record_count,
         run_id=run_id,
     )
+
 
 def get_current_stage(file_path: str) -> str:
     """
@@ -64,6 +80,7 @@ def get_current_stage(file_path: str) -> str:
         [file_path]
     ).fetchone()
     return result[0] if result else 'PENDING'
+   
 
 def update_stage(file_path:str, stage: str, run_id: str) -> None: 
     """
@@ -77,8 +94,9 @@ def update_stage(file_path:str, stage: str, run_id: str) -> None:
         WHERE FILE_PATH = ?
         """, [stage, datetime.now(), run_id, file_path] 
     )
-    conn.commit()
+    #conn.commit()
     log.info("File stage updated", file_path=file_path, stage=stage, run_id=run_id)
+
 
 
 def generate_run_id() -> str:
