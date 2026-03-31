@@ -12,7 +12,9 @@ def is_processed(file_path: str) -> bool:
         "SELECT STATUS FROM FILE_TRACKING WHERE FILE_PATH = ?", 
         [file_path]
     ).fetchone()
+    conn.close()
     return result is not None and result[0] == 'SUCCESS'
+    
 
 
 from datetime import datetime
@@ -45,6 +47,7 @@ def mark_processing(file_path: str, file_hash: str, record_count: int, run_id: s
     )
 
     log.info("File marked as processing", file_path=file_path, run_id=run_id)
+    conn.close()
     
 
 
@@ -67,6 +70,7 @@ def mark_processed( file_path: str, status: str, record_count: int, run_id: str)
         record_count=record_count,
         run_id=run_id,
     )
+    conn.close()
 
 
 def get_current_stage(file_path: str) -> str:
@@ -96,6 +100,8 @@ def update_stage(file_path:str, stage: str, run_id: str) -> None:
     )
     #conn.commit()
     log.info("File stage updated", file_path=file_path, stage=stage, run_id=run_id)
+
+    conn.close()
 
 
 
