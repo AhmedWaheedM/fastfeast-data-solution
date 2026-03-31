@@ -3,9 +3,9 @@ from FastFeast.pipeline.config.config import config_settings
 import os
 
 
-_connection = None
+#_connection = None
 def get_connection():
-    global _connection
+    _connection = None
     if _connection is None:
         cfg = config_settings
         db_path = os.path.join(cfg.paths.output_dir, cfg.database.file) # merge output dir and db file name to get full path to db
