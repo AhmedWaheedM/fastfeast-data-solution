@@ -1,8 +1,6 @@
 import shutil
-import pyarrow.csv as pv
 import time
-import pyarrow.json as pj
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -10,7 +8,6 @@ from FastFeast.support.logger import pipeline as log
 from FastFeast.pipeline.config.config import config_settings
 from FastFeast.utilities.db_utils import get_connection
 from FastFeast.utilities.file_utils import get_file_hash
-
 from FastFeast.pipeline.ingestion.file_tracker import mark_processing, generate_run_id
 
 
@@ -37,7 +34,7 @@ def wait_for_file(file_path, timeout_sec=60):
 
 
 # ------------------------------------------------------
-# Process single file (NOW includes run_id)
+# Process single file
 # ------------------------------------------------------
 def process_single_file(file, dest_today, run_id):
     conn = get_connection()
@@ -45,28 +42,27 @@ def process_single_file(file, dest_today, run_id):
     try:
         target_file = dest_today / file.name
 
-        # 1. Wait for file
         if not wait_for_file(file):
             log.warning(f"File missing after 60s: {target_file}")
             return True
 
-        # 2. Copy file (no parsing)
         shutil.copy2(file, target_file)
 
-        # 3. Hash (optional)
         file_hash = get_file_hash(file)
+        row_count = None
 
         log.info(
             "Processing file",
             file=str(target_file),
             hash=file_hash,
+            rows=row_count,
             run_id=run_id
         )
 
-        # 4. Mark tracking
         mark_processing(
             file_path=str(target_file),
             file_hash=file_hash,
+            record_count=row_count,
             run_id=run_id
         )
 
@@ -80,7 +76,7 @@ def process_single_file(file, dest_today, run_id):
 
 
 # ------------------------------------------------------
-# Get today's folder processing
+# Get today's folder
 # ------------------------------------------------------
 def get_today_files():
     today = datetime.now().date()
@@ -99,12 +95,10 @@ def get_today_files():
 
     log.info("Starting copy stage", total_files=len(files))
 
-    #Generate ONE run_id per pipeline execution
     run_id = generate_run_id()
-
     any_error = False
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
             executor.submit(process_single_file, file, dest_today, run_id): file
             for file in files
@@ -128,19 +122,57 @@ def get_today_files():
 
 
 # ------------------------------------------------------
-# Check pending files
+# Listener / Scheduler
 # ------------------------------------------------------
-def check_pending_files():
-    conn = get_connection()
-    rows = conn.execute("""
-        SELECT FILE_PATH, RECORD_COUNT
-        FROM fastfeast.FILE_TRACKING
-        WHERE STATUS = 'PROCESSING'
-    """).fetchall()
+def run_pipeline_listener(start_hour=2):
 
-    print("Pending files:")
-    for r in rows:
-        print(f"File: {r[0]} | Rows: {r[1]}")
+    while True:
+        now = datetime.now()
+
+        # Calculate today's target start time
+        start_time = now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+
+        # If current time passed today's start time → run immediately
+        if now < start_time:
+            sleep_seconds = (start_time - now).total_seconds()
+            log.info("Waiting for pipeline start time", sleep_seconds=sleep_seconds)
+            time.sleep(sleep_seconds)
+
+        log.info("Pipeline listener started for the day")
+
+        # Start 1-hour listening window
+        window_start = datetime.now()
+        timeout = timedelta(hours=1)
+
+        source_folder_name = datetime.now().date().strftime(
+            config_settings.datetime_handling.date_key_format
+        )
+        source_today = SOURCE_BASE / source_folder_name
+
+        processed = False
+
+        while datetime.now() - window_start < timeout:
+            if source_today.exists():
+                log.info("Source folder detected, starting pipeline", path=str(source_today))
+                success = get_today_files()
+                processed = True
+                break
+            else:
+                log.info("Source folder not found yet, retrying in 30 seconds")
+                time.sleep(30)
+
+        if not processed:
+            log.error("Source folder NOT found within 1 hour. Skipping to next day.")
+
+        # Sleep until next day's start time
+        next_day = (datetime.now() + timedelta(days=1)).replace(
+            hour=start_hour, minute=0, second=0, microsecond=0
+        )
+
+        sleep_seconds = (next_day - datetime.now()).total_seconds()
+        log.info("Sleeping until next day pipeline start", sleep_seconds=sleep_seconds)
+
+        time.sleep(max(0, sleep_seconds))
 
 
 # ------------------------------------------------------
@@ -148,22 +180,5 @@ def check_pending_files():
 # ------------------------------------------------------
 if __name__ == "__main__":
 
-    success = get_today_files()
-
-    if success:
-        log.info("File copy stage completed successfully.")
-    else:
-        log.error("File copy stage failed.")
-
-    print("==================================================")
-    check_pending_files()
-    print("==================================================")
-
-    conn = get_connection()
-
-    result = conn.execute(
-        "SELECT STATUS, pipeline_run_id, FROM fastfeast.FILE_TRACKING"
-    ).fetchall()
-
-    print("TOTAL TRACKED FILES:", result)
-
+    # Run listener instead of one-time execution
+    run_pipeline_listener(start_hour=2)
