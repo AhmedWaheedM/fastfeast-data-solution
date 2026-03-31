@@ -28,20 +28,7 @@ def mark_processing(file_path: str, file_hash: str, record_count: int, run_id: s
         """
         INSERT INTO FILE_TRACKING 
         (FILE_PATH, PROCESSED_AT, STATUS, CURRENT_STAGE, LAST_HASH, RECORD_COUNT, PIPELINE_RUN_ID)
-        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?)
-        ON CONFLICT (FILE_PATH) DO UPDATE SET
-            PROCESSED_AT = excluded.PROCESSED_AT,
-            STATUS = CASE 
-                WHEN FILE_TRACKING.LAST_HASH != excluded.LAST_HASH THEN 'PROCESSING'
-                ELSE FILE_TRACKING.STATUS
-            END,
-            CURRENT_STAGE = CASE 
-                WHEN FILE_TRACKING.LAST_HASH != excluded.LAST_HASH THEN 'PENDING'
-                ELSE FILE_TRACKING.CURRENT_STAGE
-            END,
-            LAST_HASH = excluded.LAST_HASH,
-            RECORD_COUNT = excluded.RECORD_COUNT,
-            PIPELINE_RUN_ID = excluded.PIPELINE_RUN_ID
+        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?);
         """,
         [file_path, datetime.now(), file_hash, record_count, run_id]
     )
