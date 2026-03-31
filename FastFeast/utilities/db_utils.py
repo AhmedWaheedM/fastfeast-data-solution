@@ -1,12 +1,13 @@
 import duckdb 
-from pipeline.config.config import load
+from FastFeast.pipeline.config.config import config_settings
 import os
+
 
 _connection = None
 def get_connection():
     global _connection
     if _connection is None:
-        cfg = load('pipeline/config/config.yaml')
+        cfg = config_settings
         db_path = os.path.join(cfg.paths.output_dir, cfg.database.file) # merge output dir and db file name to get full path to db
         os.makedirs(cfg.paths.output_dir, exist_ok=True)
         _connection = duckdb.connect(db_path)
@@ -18,7 +19,7 @@ def _run_ddl(conn):
     Run All DDL files to ensure tables exist 
     """
     import os 
-    ddl_dirs = ['dwh/bronze', 'dwh/silver', 'dwh/gold']
+    ddl_dirs = ['FastFeast/dwh/bronze', 'FastFeast/dwh/silver', 'FastFeast/dwh/gold']
     for directory in ddl_dirs: 
         if not os.path.exists(directory):
             continue
