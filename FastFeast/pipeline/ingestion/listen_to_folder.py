@@ -78,7 +78,7 @@ def process_single_file(file, dest_today, run_id):
 # ------------------------------------------------------
 # Get today's folder
 # ------------------------------------------------------
-def get_today_files():
+def get_today_files(run_id):
     today = datetime.now().date()
     today_folder_name = today.strftime(config_settings.datetime_handling.date_key_format)
 
@@ -95,7 +95,6 @@ def get_today_files():
 
     log.info("Starting copy stage", total_files=len(files))
 
-    run_id = generate_run_id()
     any_error = False
 
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -129,18 +128,18 @@ def run_pipeline_listener(start_hour=2):
     while True:
         now = datetime.now()
 
-        # Calculate today's target start time
+        # generate ONE run_id per pipeline cycle
+        run_id = generate_run_id()
+
         start_time = now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
 
-        # If current time passed today's start time → run immediately
         if now < start_time:
             sleep_seconds = (start_time - now).total_seconds()
             log.info("Waiting for pipeline start time", sleep_seconds=sleep_seconds)
             time.sleep(sleep_seconds)
 
-        log.info("Pipeline listener started for the day")
+        log.info("Pipeline listener started for the day", run_id=run_id)
 
-        # Start 1-hour listening window
         window_start = datetime.now()
         timeout = timedelta(hours=1)
 
@@ -153,24 +152,23 @@ def run_pipeline_listener(start_hour=2):
 
         while datetime.now() - window_start < timeout:
             if source_today.exists():
-                log.info("Source folder detected, starting pipeline", path=str(source_today))
-                success = get_today_files()
+                log.info("Source folder detected, starting pipeline", path=str(source_today), run_id=run_id)
+                success = get_today_files(run_id)
                 processed = True
                 break
             else:
-                log.info("Source folder not found yet, retrying in 30 seconds")
+                log.info("Source folder not found yet, retrying in 30 seconds", run_id=run_id)
                 time.sleep(30)
 
         if not processed:
-            log.error("Source folder NOT found within 1 hour. Skipping to next day.")
+            log.info("Source folder NOT found within 1 hour. Skipping to next day.", run_id=run_id)
 
-        # Sleep until next day's start time
         next_day = (datetime.now() + timedelta(days=1)).replace(
             hour=start_hour, minute=0, second=0, microsecond=0
         )
 
         sleep_seconds = (next_day - datetime.now()).total_seconds()
-        log.info("Sleeping until next day pipeline start", sleep_seconds=sleep_seconds)
+        log.info("Sleeping until next day pipeline start", sleep_seconds=sleep_seconds, run_id=run_id)
 
         time.sleep(max(0, sleep_seconds))
 
