@@ -3,6 +3,13 @@ from FastFeast.pipeline.config.metadata import Settings
 from FastFeast.pipeline.config.metadata import FileMeta
 from pipeline.logger import logging
 
+
+##########################################################
+# Heree we need to add log
+# Need to depend on file_hash , not just nanem incase changing on this
+# Need to get run_id, file_path and others from file tracking
+##########################################################
+
 ########## insted of loop many times to get all information from the disk, cash meta in memory
 def build_metadata_map(settings: Settings) -> Dict[str, FileMeta]: 
     all_files = settings.batch + settings.stream
