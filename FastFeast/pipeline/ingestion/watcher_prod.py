@@ -1,10 +1,10 @@
-from FastFeast.pipeline.config.config import config_settings
-from FastFeast.pipeline.config.metadata import metadata_settings
+from pipeline.config.config import config_settings
+from pipeline.config.metadata import metadata_settings
 from datetime import datetime, date, timedelta
 import time as t
 from pathlib import Path
-from pipeline.logger import pipeline as log #Logger discussion
-from FastFeast.pipeline.ingestion.files_processing_prod import process_all_batch_files
+from support.logger import pipeline as log #Logger discussion
+from pipeline.ingestion.files_processing_prod import process_all_batch_files
 
 def wait_for_batch_folder():
     batch_dir = Path(config_settings.paths.batch_dir)

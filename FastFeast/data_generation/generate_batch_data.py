@@ -5,8 +5,8 @@ import argparse
 import pandas as pd
 from datetime import datetime
 
-MASTER_DIR = "../data/master"
-BATCH_DIR = "../data/input/batch"
+MASTER_DIR = "../../data/master"
+BATCH_DIR = "../../data/input/batch"
 
 
 def load_master_data():

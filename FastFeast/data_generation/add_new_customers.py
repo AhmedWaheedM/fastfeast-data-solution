@@ -5,7 +5,7 @@ import argparse
 import pandas as pd
 from datetime import datetime, timedelta
 
-MASTER_DIR = "../data/master"
+MASTER_DIR = "../../data/master"
 
 
 FIRST_NAMES_MALE = [

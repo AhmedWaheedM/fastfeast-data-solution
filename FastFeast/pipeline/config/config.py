@@ -17,6 +17,7 @@ class Database:
 class Paths:
     master_dir: str
     batch_dir: str
+    dest_base: str
     stream_dir: str
     output_dir: str
     log_file: str
@@ -110,3 +111,15 @@ def load(path: str) -> Settings:
 yaml_path = Path(os.getenv("CONFIG_YAML", Path(__file__).parent / "config.yaml"))
 
 config_settings = load(yaml_path)
+
+
+# ------------------------------------------------------
+# Lazy Config Loader
+# ------------------------------------------------------
+_config = None
+
+def get_config():
+    global _config
+    if _config is None:
+        _config = load(yaml_path)
+    return _config
