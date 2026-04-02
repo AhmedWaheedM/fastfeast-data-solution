@@ -28,8 +28,22 @@ def build_metadata_map(settings: Settings) -> Dict[str, FileMeta]:
 
 #Retrieve metadata for a given file name
 #Returns None if the file is not defined in metadata
-def get_file_metadata(metadata_map: Dict[str, FileMeta], file_name: str) -> Optional[FileMeta]:
-   return metadata_map.get(file_name)
+def get_file_metadata(metadata_settings, file_name: str):
+    """
+    Search for FileMeta inside batch and stream lists
+    """
+
+    # search in batch
+    for file_meta in metadata_settings.batch:
+        if file_meta.file_name == file_name:
+            return file_meta
+
+    # search in stream
+    for file_meta in metadata_settings.stream:
+        if file_meta.file_name == file_name:
+            return file_meta
+
+    return None
 
 
 
