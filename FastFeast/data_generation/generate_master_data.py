@@ -18,9 +18,10 @@ from datetime import datetime, timedelta
 SEED = 42
 random.seed(SEED)
 
-MASTER_DIR = "FastFeast/data/master"
+MASTER_DIR = "../data/master"
 os.makedirs(MASTER_DIR, exist_ok=True)
 
+print("Generating master data...", MASTER_DIR)
 # Initial counts - these will grow as new customers/drivers are added
 INITIAL_CUSTOMERS = 500
 INITIAL_RESTAURANTS = 60
