@@ -1,28 +1,31 @@
 database:
-  type: duckdb             
-  name: fastfeast         
-  file: fastfeast.duckdb  
-  read_only: false         
+  type: duckdb
+  name: fastfeast
+  file: fastfeast.duckdb
+  read_only: false
 
 paths:
-  master_dir: ../data/master/
-  batch_dir: ../data/input/batch/
-  stream_dir: ../data/input/stream/
-  output_dir: ../data/output/
-  log_file: ../output/
-  quarantine_file : ../validation/
-  report_file : ../output/
-  alert_file : ../output/
-  check_point_file : ../utilities/
+  data_dir:       data/
+  bronze_dir:     bronze/
+  master_dir:     data/master/
+  batch_dir:      data/batch/
+  stream_dir:     ../data/stream/
+  output_dir:     data/output/
+  log_dir:        logs/
+  quarantine_dir: data/quarantine/
+  report_dir:     data/reports/
+  alert_dir:      data/alerts/
+  checkpoint_dir: data/checkpoints/
+  metadata_file:  pipeline/config/files_metadata.yaml
 
 pipeline:
   batch_size: 1000
   retry_attempts: 3
-  #max_threads: 4
   log_level: INFO
-  mode : hybrid
-# every time we run pipeline for test we may change between batch or stream run,
-# change it here
+  mode: hybrid
+  max_workers: 4
+  sleep_hours: 1
+  max_attempts: 3
 
 export:
   enabled: true
@@ -40,23 +43,34 @@ logging:
   rotate: daily
   backup_count: 7
   level: INFO
+  max_bytes:   5242880
+  fmt:         "%(asctime)s  %(levelname)-8s  [%(name)s]  %(message)s"
+  datefmt:     "%Y-%m-%dT%H:%M:%S"
 
 alerts:
-  email: supervisor@gmail.com
-  on_fail: true
+  email:         ehabnasr406@gmail.com
+  on_fail:       true
+  smtp_host:     smtp.gmail.com
+  smtp_port:     587
+  smtp_user:     ehabnasr406@gmail.com
+  slack_webhook: ""
+  max_queue_size:       100
+  send_timeout_sec:     15
+  shutdown_timeout_sec: 30
 
 stream:
-  poll_interval_sec: 30      # event-based, check every 30 seconds
-  file_pattern: ["*.csv", "*.json"] 
+  poll_interval_sec: 30
+  file_pattern: ["*.csv", "*.json"]
 
 batch:
-  schedule: daily # time-based
-  file_pattern: ["*.csv", "*.json"] 
-  max_files_per_run: 10   
-# this will be detected through experience with data, or we can calc the time for each batch
-# and take the batch with the best time 
+  schedule: daily
+  file_pattern: ["*.csv", "*.json"]
+  max_files_per_run: 10
 
 threshold:
   max_open: 1
   max_response: 15
-  #orphan_rate: 
+
+log_parser:
+  tail_per_file: 500
+  filter_last_n: 200
