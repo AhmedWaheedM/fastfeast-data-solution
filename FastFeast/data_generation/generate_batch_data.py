@@ -5,8 +5,8 @@ import argparse
 import pandas as pd
 from datetime import datetime
 
-MASTER_DIR = "FastFeast/data/master"
-BATCH_DIR = "FastFeast/data/input/batch"
+MASTER_DIR = "D:\\Python\\Fast Feast\\data\\master"
+BATCH_DIR = "D:\\Python\\Fast Feast\\data\\batch"
 
 
 def load_master_data():
