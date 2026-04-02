@@ -1,19 +1,19 @@
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.csv as pv
-
-from typing import Optional, Dict
-from pathlib import Path
 import time
 
-from FastFeast.pipeline.config.metadata import metadata_settings, FileMeta
-from pipeline.logger import validation as log
+from pathlib import Path
+from typing import Dict
 
+from FastFeast.pipeline.config.metadata import metadata_settings
 from FastFeast.utilities.file_utils import get_file_metadata
 from FastFeast.test.regex_map import validate_with_regex
 
 
-########################################################################################################################
+# =========================================================
+# Type Mapping
+# =========================================================
 def _map_type_to_pyarrow(type_str: str) -> pa.DataType:
     mapping = {
         'integer': pa.int64(),
@@ -23,157 +23,255 @@ def _map_type_to_pyarrow(type_str: str) -> pa.DataType:
         'timestamp': pa.timestamp('us'),
         'date': pa.date32(),
     }
-
-    if type_str not in mapping:
-        log.warning(f"Unknown type '{type_str}', defaulting to string")
-        return pa.string()
-
-    return mapping[type_str]
-########################################################################################################################
+    return mapping.get(type_str)
 
 
-########################################################################################################################
+# =========================================================
+# Datatype Validation
+# =========================================================
 def _validate_column(col, target_type):
-    was_null = pc.is_null(col)
+        
+        if not pa.types.is_string(col.type):
+            col_str = pc.cast(col, pa.string())
+        else:
+            col_str = col
 
-    try:
-        casted = pc.cast(col, target_type, safe=True)
-        is_now_null = pc.is_null(casted)
+        col_clean = pc.ascii_trim_whitespace(col_str) #remove any spces to can detect Nulls
 
-        invalid = pc.and_(pc.invert(was_null), is_now_null)
+        was_null = pc.fill_null(
+        pc.or_(
+            pc.is_null(col),
+            pc.equal(col_clean, "")
+        ),
+        True
+    )# return True for Null
+        #print("WASSS NULLLLLLL", was_null)
 
-    except Exception:
-        col_str = pc.cast(col, pa.string(), safe=False)
-        regex_valid = validate_with_regex(col_str, target_type)
+        try:
+            casted = pc.cast(col_clean, target_type, safe=True)
+            is_now_null = pc.is_null(casted)
 
-        invalid = pc.and_(pc.invert(was_null), pc.invert(regex_valid))
+            datatype_invalid = pc.and_(
+                pc.invert(was_null),
+                is_now_null
+            )
 
-    return invalid , was_null
-########################################################################################################################
+        except Exception:
+            col_clean_final = pc.cast(col_clean, pa.string())
+            regex_valid = validate_with_regex(col_clean_final, target_type)
+
+            datatype_invalid = pc.and_(
+                pc.invert(was_null),
+                pc.invert(regex_valid)
+            )
+
+    # NULL handling (consider NULL invalid here)
+        null_invalid = was_null
+
+        final_invalid = pc.or_(datatype_invalid, null_invalid)
+        valid_mask = pc.invert(final_invalid)
+
+        return final_invalid, was_null, valid_mask
 
 
-########################################################################################################################
-def _compute_valid_mask_vectorized(table: pa.Table, expected_types: dict, run_id: str) -> pa.Array:
 
-    num_rows = table.num_rows
-    masks = []
-    null_mask = {}
+# file_path = r"FastFeast/input_data/2026-03-30/drivers.csv"
+# import pyarrow.csv as pv
+
+# table = pv.read_csv(file_path,
+#     read_options=pv.ReadOptions(autogenerate_column_names=False),
+#     parse_options=pv.ParseOptions(delimiter=","),
+# )
+# typee =  _map_type_to_pyarrow("varchar")
+# result = _validate_column(table["driver_phone"],typee)
+# print("33333333333333333333333333333333333333333333333333333",result)
+
+
+def _compute_valid_mask_vectorized(table: pa.Table, expected_types: dict, run_id: str):
+
+    masks = {}
+    null_masks = {}
+    invalid_masks = {}
 
     for col_name, target_type in expected_types.items():
 
         if col_name not in table.column_names:
-            log.error(f"Column '{col_name}' missing. run_id={run_id}")
-            return pa.array([False] * num_rows, type=pa.bool_())
+            raise ValueError(f"Missing column: {col_name}")
 
         col = table[col_name]
-        invalid_in_col, was_null = _validate_column(col, target_type)
 
-        valid_col_mask = pc.invert(invalid_in_col)
-        masks.append(valid_col_mask)
-        null_mask[col_name] = was_null
+        invalid_mask, was_null, valid_mask = _validate_column(col, target_type)
 
-        # Logging (non-critical path)
-        if pc.any(invalid_in_col).as_py():
-            invalid_count = pc.sum(invalid_in_col.cast(pa.int64())).as_py()
-            log.warning(f"{col_name}: {invalid_count} invalid rows (run_id={run_id})")
+        masks[col_name] = valid_mask
+        null_masks[col_name] = was_null
+        invalid_masks[col_name] = invalid_mask
 
-    # Combine all column masks once
-    valid_mask = masks[0]
-    for m in masks[1:]:
-        valid_mask = pc.and_(valid_mask, m)
+    # Combine datatype masks (AND across columns)
+    final_mask = None
+    for m in masks.values():
+        final_mask = m if final_mask is None else pc.and_(final_mask, m)
 
-    return valid_mask , null_mask
-########################################################################################################################
+    return final_mask, null_masks, invalid_masks
 
 
-########################################################################################################################
-def _validate_batch(batch: pa.RecordBatch, expected_types: dict, run_id: str):
-    table = pa.Table.from_batches([batch])
+# expected_types = {
+#     "driver_phone": "varchar",
+#     "driver_name": "varchar"
+# }
 
-    valid_mask, null_mask = _compute_valid_mask_vectorized(table, expected_types, run_id)
+# final_mask, null_masks, invalid_masks = _compute_valid_mask_vectorized(
+#     table,
+#     expected_types,
+#     "001"
+# )
 
-    valid_table = table.filter(valid_mask)
-    invalid_table = table.filter(pc.invert(valid_mask))
-
-    return valid_table, invalid_table, null_mask
-########################################################################################################################
-
-
-#########################################################################################################################
-def _enrich_with_run_id(table: pa.Table, run_id: str) -> Optional[pa.Table]:
-    if table is None or len(table) == 0:
-        return None
-
-    run_id_col = pa.array([run_id] * len(table), type=pa.string())
-    return table.append_column('PIPELINE_RUN_ID', run_id_col)
-#########################################################################################################################
+# final_mask, null_masks, invalid_masks = _compute_valid_mask_vectorized(
+#     table,
+#     expected_types,
+#     "001"
+# )
 
 
-########################################################################################################################
-# metadata = build_metadata_map(metadata_settings)
+# print(null_masks["driver_phone"].to_pylist())
+
+# =========================================================
+# Business Validation Rules
+# =========================================================
+def _build_rule_masks(table: pa.Table, rules: Dict):
+
+    masks = {}
+    reasons = {}
+
+    for col, rule in rules.items():
+
+        if col not in table.column_names:
+            continue
+
+        col_data = table[col]
+
+        if rule["type"] == "email":
+            valid = validate_with_regex(col_data, "email")
+
+        elif rule["type"] == "range":
+            valid = pc.and_(
+                pc.greater_equal(col_data, rule["min"]),
+                pc.less_equal(col_data, rule["max"])
+            )
+
+        elif rule["type"] == "phone":
+            valid = validate_with_regex(col_data, "phone")
+
+        elif rule["type"] == "datetime":
+            valid = validate_with_regex(col_data, "datetime")
+
+        else:
+            valid = pa.array([True] * table.num_rows)
+
+        masks[col] = valid
+        reasons[col] = rule["type"]
+
+    return masks, reasons
 
 
-def validate_data_types_batched(
-    table: pa.Table,
-    file_path: str,
-    run_id: str,
-    metadata_map: Dict[str, FileMeta]
-):
+# =========================================================
+# Main Validation Pipeline
+# =========================================================
+def validate_pipeline(table: pa.Table, file_path: str, run_id: str, metadata_map):
 
     file_name = Path(file_path).name
+
     fm = get_file_metadata(metadata_map, file_name)
 
     if fm is None:
         raise ValueError(f"Unknown file: {file_name}")
 
+    # -------------------------
+    # Expected types
+    # -------------------------
     expected_types = {
         col.name: _map_type_to_pyarrow(col.type)
         for col in fm.columns
     }
 
-    valid_batches = []
-    invalid_batches = []
-    all_null_mask = {}
+    # -------------------------
+    # Datatype Validation
+    # -------------------------
+    dt_mask, null_masks, invalid_masks = _compute_valid_mask_vectorized(
+        table,
+        expected_types,
+        run_id
+    )
 
-    start_batches = time.perf_counter()
+    valid_dt_table = table.filter(dt_mask)
+    invalid_dt_table = table.filter(pc.invert(dt_mask))
 
-    for batch in table.to_batches():
-        valid_table, invalid_table, null_mask = _validate_batch(batch, expected_types, run_id)
+    # print("Datatype valid rows:", valid_dt_table.num_rows)
+    # for col, null in null_masks.items():
+    #     count = pc.sum(null).as_py()
+    #     print(col,":",count)
 
-        if valid_table is not None:
-            valid_batches.append(valid_table)
-
-        if invalid_table is not None:
-            invalid_batches.append(invalid_table)
-
-         # collect null masks
-        for col, mask in null_mask.items():
-            if col not in all_null_mask:
-                all_null_mask[col] = [mask]
-            else:
-                all_null_mask[col].append(mask)
-
-    # combine null masks
-    final_null_masks = {
-        col: pa.concat_arrays(masks)
-        for col, masks in all_null_mask.items()
+    # -------------------------
+    # Business Validation
+    # -------------------------
+    rules = {
+        "email": {"type": "email"},
+        "age": {"type": "range", "min": 0, "max": 120},
+        "phone": {"type": "phone"},
+        "created_at": {"type": "datetime"},
+        "category_id": {"type": "integer"},
+        "category_name": {"type": "varchar"}
     }
 
-    end_batches = time.perf_counter()
+    rule_masks, rule_reasons = _build_rule_masks(valid_dt_table, rules)
 
-    print(f"Batching + Validation Time: {end_batches - start_batches:.4f} seconds")
+    # Combine business masks
+    business_mask = None
+    for m in rule_masks.values():
+        business_mask = m if business_mask is None else pc.and_(business_mask, m)
 
-    concat_start = time.perf_counter()
+    # -------------------------
+    # Build row-level reasons
+    # -------------------------
+    reasons_list = []
 
-    valid_rows = pa.concat_tables(valid_batches) if valid_batches else None
-    invalid_rows = pa.concat_tables(invalid_batches) if invalid_batches else None
+    for i in range(valid_dt_table.num_rows):
+        row_reasons = []
 
-    concat_end = time.perf_counter()
+        for col, mask in rule_masks.items():
+            if not mask[i].as_py():
+                row_reasons.append(f"{col}: invalid ({rule_reasons[col]})")
 
-    print(f"Concatenation Time: {concat_end - concat_start:.4f} seconds")
+        reasons_list.append(", ".join(row_reasons) if row_reasons else None)
 
-    valid_rows = _enrich_with_run_id(valid_rows, run_id)
-    invalid_rows = _enrich_with_run_id(invalid_rows, run_id)
+    # Attach reasons column
+    valid_dt_table = valid_dt_table.append_column(
+        "validation_errors",
+        pa.array(reasons_list)
+    )
 
-    return valid_rows, invalid_rows, final_null_masks
-########################################################################################################################
+    # -------------------------
+    # Final split
+    # -------------------------
+    final_valid = valid_dt_table.filter(business_mask)
+    final_invalid = valid_dt_table.filter(pc.invert(business_mask))
+
+    return final_valid, final_invalid, null_masks
+
+
+
+
+
+metadata_map = metadata_settings
+
+# final_valid, final_invalid, null_masks = validate_pipeline(
+#     table,
+#     file_path,
+#     "run_id",
+#     metadata_map
+# )
+
+# print(null_masks)
+
+# for col, mask in null_masks.items():
+#     count = pc.sum(mask).as_py()
+#     print(col, ":", count)
