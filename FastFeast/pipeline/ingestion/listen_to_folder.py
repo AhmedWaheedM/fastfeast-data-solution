@@ -11,10 +11,9 @@ from FastFeast.pipeline.config.config import get_config
 from FastFeast.pipeline.ingestion.file_tracker import mark_processing, generate_run_id
 from FastFeast.pipeline.bridge.pyarrow_table import load_file
 
+from FastFeast.test.datatype_validator import validate_pipeline
+from FastFeast.pipeline.config.metadata import metadata_settings
 
-# ------------------------------------------------------
-# Lazy Config Loader
-# ------------------------------------------------------
 
 config = get_config()
 
@@ -23,25 +22,26 @@ BASE_DIR = Path(__file__).resolve().parents[3]
 SOURCE_BASE = BASE_DIR / config.paths.batch_dir
 DEST_BASE = BASE_DIR / config.paths.dest_base
 
+
+# ======================================================
+# Helper timing function
+# ======================================================
+def now():
+    return time.perf_counter()
+
+
 # ------------------------------------------------------
-# Paths
-# ------------------------------------------------------
-# BASE_DIR = Path(__file__).resolve().parents[3]
-
-# SOURCE_BASE = BASE_DIR / "data" / "input" / "batch"
-# DEST_BASE = BASE_DIR / "FastFeast" / "input_data"
-
-
-# ----------------------------------------------------------------------
 # Wait for file
-# ----------------------------------------------------------------------
+# ------------------------------------------------------
 def wait_for_file(file_path, timeout_sec=60):
     path = Path(file_path)
     start = time.time()
+
     while not path.exists():
         if time.time() - start > timeout_sec:
             return False
         time.sleep(1)
+
     return True
 
 
@@ -50,59 +50,102 @@ def wait_for_file(file_path, timeout_sec=60):
 # ------------------------------------------------------
 def process_single_file(file, dest_today, run_id, conn):
 
-    #conn = get_connection()
+    file_start = now()
 
     try:
         target_file = dest_today / file.name
 
+        # -------------------------
+        # Wait + Copy Stage
+        # -------------------------
+        t0 = now()
+
         if not wait_for_file(file):
-            log.warning(f"File missing after 60s: {target_file}")
+            log.warning("File missing after timeout", file=file.name)
             return True
 
         shutil.copy2(file, target_file)
 
-        #load as PyArrow table
+        copy_time = now() - t0
+
+        log.debug(
+            "Copy stage",
+            file=file.name,
+            seconds=copy_time
+        )
+
+        # -------------------------
+        # Ingestion Stage
+        # -------------------------
+        t1 = now()
+
         table = load_file(target_file)
 
         if table is None:
-            log.warning("Failed to load file as table", file=file.name)
+            log.warning("Failed to load file", file=file.name)
             return False
 
-        row_count = table.num_rows
+        ingestion_time = now() - t1
 
+        log.debug(
+            "Ingestion stage",
+            file=file.name,
+            seconds=ingestion_time,
+            rows=table.num_rows
+        )
+
+        # -------------------------
+        # Validation Stage
+        # -------------------------
+        t2 = now()
+
+        try:
+            final_valid, final_invalid, null_masks = validate_pipeline(
+                table,
+                str(target_file),
+                run_id,
+                metadata_settings
+            )
+
+            validation_time = now() - t2
+
+            log.debug(
+                "Validation stage",
+                file=file.name,
+                seconds=validation_time,
+                valid_rows=final_valid.num_rows,
+                invalid_rows=final_invalid.num_rows,
+                null_masks_count=len(null_masks)
+            )
+
+        except Exception as e:
+            log.error("Validation failed", file=file.name, error=str(e), exc_info=True)
+            return False
+
+        # -------------------------
+        # Post-processing
+        # -------------------------
         file_hash = get_file_hash(file)
-
-        # log.info(
-        #     "Processing file",
-        #     file=str(target_file),
-        #     hash=file_hash,
-        #     rows=row_count,
-        #     run_id=run_id
-        # )
-        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
-        # print("Schema:", table.schema)
-        # print("Rows:", table.num_rows)
-        # print(table.to_pandas().head())
-        # print("-" * 50)
-        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
-
 
         mark_processing(
             file_path=str(target_file),
             file_hash=file_hash,
-            record_count=row_count,
+            record_count=table.num_rows,
             run_id=run_id
         )
-        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
-        # print("COUNT OF ROWS:", row_count)
-        # print("444444444444444444444444444444444444444444444444444444444444444444444444444444444444444")
 
-        #log.info("File copied + converted to table", file=file.name)
+        total_time = now() - file_start
+
+        log.info(
+            "File completed",
+            file=file.name,
+            total_seconds=total_time
+        )
 
         return True
 
     except Exception as e:
-        #log.error("Error processing file", file=file.name, error=str(e), exc_info=True)
+        log.error("Processing failed", file=file.name, error=str(e), exc_info=True)
         return False
 
 
@@ -110,9 +153,10 @@ def process_single_file(file, dest_today, run_id, conn):
 # Get today's folder
 # ------------------------------------------------------
 def get_today_files(run_id):
-    config = get_config()
 
     conn = get_connection()
+
+    batch_start = now()
 
     today = datetime.now().date()
     today_folder_name = today.strftime(config.datetime_handling.date_key_format)
@@ -121,18 +165,24 @@ def get_today_files(run_id):
     dest_today = DEST_BASE / today_folder_name
 
     if not source_today.exists():
-        log.error("Source folder does not exist", path=str(source_today))
+        log.error("Source folder missing", path=str(source_today))
         return False
 
     dest_today.mkdir(parents=True, exist_ok=True)
 
     files = [f for f in source_today.glob("*") if f.is_file()]
 
-    log.info("Starting copy stage", total_files=len(files))
+    log.info("Starting processing", total_files=len(files))
 
     any_error = False
 
+    # -------------------------
+    # Thread execution timing
+    # -------------------------
+    thread_start = now()
+
     with ThreadPoolExecutor(max_workers=4) as executor:
+
         futures = {
             executor.submit(process_single_file, file, dest_today, run_id, conn): file
             for file in files
@@ -140,6 +190,7 @@ def get_today_files(run_id):
 
         for future in as_completed(futures):
             file = futures[future]
+
             try:
                 if not future.result():
                     any_error = True
@@ -147,10 +198,19 @@ def get_today_files(run_id):
                 log.error("Thread crashed", file=file.name, error=str(e), exc_info=True)
                 any_error = True
 
+    thread_time = now() - thread_start
+    total_batch_time = now() - batch_start
+
+    log.info(
+        "Batch timing summary",
+        threads_seconds=thread_time,
+        total_seconds=total_batch_time
+    )
+
     if any_error:
-        log.error("Copy stage completed WITH errors", run_id=run_id)
+        log.error("Batch completed WITH errors", run_id=run_id)
     else:
-        log.info("Copy stage completed WITHOUT errors", run_id=run_id)
+        log.info("Batch completed successfully", run_id=run_id)
 
     return not any_error
 
@@ -160,10 +220,7 @@ def get_today_files(run_id):
 # ------------------------------------------------------
 def run_pipeline_listener():
 
-    config = get_config()
-
-    # UPDATED: parse "3:00:00"
-    schedule_str = config.batch.schedule  # e.g. "3:00:00"
+    schedule_str = config.batch.schedule
     parts = schedule_str.split(":")
 
     hour = int(parts[0])
@@ -171,53 +228,37 @@ def run_pipeline_listener():
     second = int(parts[2]) if len(parts) > 2 else 0
 
     while True:
-        now = datetime.now()
+        now_dt = datetime.now()
 
-        # Build today's scheduled datetime
-        start_time = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+        start_time = now_dt.replace(hour=hour, minute=minute, second=second, microsecond=0)
 
-        # If already passed → schedule for next day
-        if now >= start_time:
+        if now_dt >= start_time:
             start_time = start_time + timedelta(days=1)
 
-        sleep_seconds = (start_time - now).total_seconds()
+        sleep_seconds = (start_time - now_dt).total_seconds()
 
         log.info(
-            "Pipeline scheduled",
-            current_time=str(now),
-            next_run_time=str(start_time),
-            sleep_seconds=sleep_seconds
+            "Scheduler waiting",
+            current_time=now_dt.isoformat(),
+            next_run=start_time.isoformat(),
+            sleep_seconds=round(sleep_seconds, 2)
         )
 
-        time.sleep(max(0, sleep_seconds)) #to avoide crash is seconds= 0
+        time.sleep(max(0, sleep_seconds))
 
         run_id = generate_run_id()
         log.info("Pipeline started", run_id=run_id)
 
-        window_start = datetime.now()
-        timeout = timedelta(hours=1)
-
-        config = get_config()
-
         source_folder_name = datetime.now().date().strftime(
             config.datetime_handling.date_key_format
         )
+
         source_today = SOURCE_BASE / source_folder_name
 
-        processed = False
-
-        while datetime.now() - window_start < timeout:
-            if source_today.exists():
-                log.info("Source folder detected", path=str(source_today), run_id=run_id)
-                success = get_today_files(run_id)
-                processed = True
-                break
-            else:
-                log.info("Source folder not found yet, retrying...", run_id=run_id)
-                time.sleep(30)
-
-        if not processed:
-            log.info("Source folder NOT found within 1 hour. Skipping run.", run_id=run_id)
+        if source_today.exists():
+            get_today_files(run_id)
+        else:
+            log.info("No source folder found, skipping run", run_id=run_id)
 
 
 # ------------------------------------------------------
