@@ -1,0 +1,23 @@
+# ── Ingestion runtime artefacts ──────────────────────────────────
+# Processed file tracking state
+*.processed
+*.tracker
+file_tracker_state.json
+tracking/
+
+# Incoming / staged data (never commit raw data)
+data/
+input/
+output/
+stream/
+bronze/
+silver/
+gold/
+
+# Daemon PID files
+*.pid
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
