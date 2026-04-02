@@ -17,7 +17,7 @@ TYPE_REGEX_MAP = {
 def validate_with_regex(col_str, target_type):
     regex = TYPE_REGEX_MAP.get(target_type)
     if regex is None:
-        return pa.array([True] * len(col_str), type=pa.bool_())
+        return pc.is_valid(col_str)
 
     return pc.match_substring_regex(col_str, regex)
 ########################################################################################################################
