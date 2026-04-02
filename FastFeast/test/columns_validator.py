@@ -1,10 +1,10 @@
 import pyarrow as pa
 from pathlib import Path
 from collections import Counter
-from typing import List, Optional, Any
-from FastFeast.pipeline.config.metadata import metadata_settings
+from typing import List, Dict
+from FastFeast.pipeline.config.metadata import FileMeta
 from pipeline.logger import validation as log
-from FastFeast.utilities.file_utils import get_config_source, get_file_metadata
+from FastFeast.utilities.file_utils import get_file_metadata
 
 
 def _has_duplicate_columns(actual_cols: List[str], file_path: str, run_id: str) -> bool:
@@ -31,15 +31,29 @@ def _has_schema_mismatch(expected_cols: List[str], actual_cols: List[str], file_
     return False
 
 
-def valid_columns(table: pa.Table, file_path: str, run_id: str) -> bool:
+def valid_columns(table: pa.Table, file_path: str, run_id: str, metadata_map: Dict[str, FileMeta]) -> bool:
     """
     Validate that the table's columns match the expected columns from metadata.
     Checks for missing, extra, and duplicate columns.
     Returns True if validation passes or is skipped, False if schema issues are found.
     """
+
+    file_name = Path(file_path).name
+
+    fm = get_file_metadata(metadata_map, file_name)
+
+    if fm is None:
+        raise ValueError(f"Unknown file: {file_name}")
+    
     actual_cols = table.column_names
-    if _has_duplicate_columns(actual_cols, file_path, run_id) or _has_schema_mismatch([col.name for col in get_file_metadata(get_config_source(file_path), Path(file_path).name).columns], actual_cols, file_path, run_id):
+    expected_cols = [col.name for col in fm.columns]
+
+    if _has_duplicate_columns(actual_cols, file_path, run_id):
         return False
+
+    if _has_schema_mismatch(expected_cols, actual_cols, file_path, run_id):
+        return False
+
     return True
 
 
