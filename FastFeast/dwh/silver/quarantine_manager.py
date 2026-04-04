@@ -23,12 +23,13 @@ def route_records(table: pa.Table, table_name: str, run_id: str) -> pa.Table:
         raise ValueError(f"Table {table_name} is missing required validation columns.")
     
     num_rows = table.num_rows
-    table = table.append_column('pipeline_run_id' , pa.array([run_id * num_rows]))
-    table = table.append_column("_processed_at", pa.array([datetime.now()] * num_rows, type = pa.timestamp('us')))
+    table = table.append_column('pipeline_run_id', pa.array([run_id] * num_rows))
+    table = table.append_column("_processed_at", pa.array([datetime.now()] * num_rows, type=pa.timestamp('us')))
 
-    good_table = table.filter(pc.equal(['record_status'], 'VALID'))
-    bad_table = table.filter(pc.equal(['record_status'], 'INVALID'))
-    orphan_table = table.filter(pc.equal(['record_status'], 'ORPHAN'))
+    good_table = table.filter(pc.equal(table['_record_status'], 'VALID'))
+    bad_table = table.filter(pc.equal(table['_record_status'], 'INVALID'))
+    orphan_table = table.filter(pc.equal(table['_record_status'], 'ORPHAN'))
+    expired_orphans = pa.table({})
     if orphan_table.num_rows > 0:
         expired_mask = pc.greater_equal(orphan_table['_retry_count'], MAX_ORPHAN_RETRIES)
         expired_orphans = orphan_table.filter(expired_mask)
@@ -36,13 +37,17 @@ def route_records(table: pa.Table, table_name: str, run_id: str) -> pa.Table:
 
         if expired_orphans.num_rows > 0:
             log.warning(f"Found {expired_orphans.num_rows} expired orphan records. Routing to DLQ.", table_name=table_name)
-            expired_reasons = pc.utf8_concat([expired_orphans['_error_reasons'], pa.scalar(" | expired_orphan")])
+            expired_reasons = pc.binary_join_element_wise(
+                expired_orphans['_error_reasons'],
+                pa.scalar(" | expired_orphan"),
+                pa.scalar("")
+            )
             expired_orphans = expired_orphans.set_column(
                 expired_orphans.schema.get_field_index('_error_reasons'), 
                 '_error_reasons',
                 expired_reasons
             )
-            bad_table = pc.concat_tables([bad_table, expired_orphans])
+            bad_table = pa.concat_tables([bad_table, expired_orphans])
         
         if active_orphans.num_rows > 0: 
             _write_to_storage(active_orphans, table_name, run_id, folder_type = "orphans")
@@ -53,13 +58,14 @@ def route_records(table: pa.Table, table_name: str, run_id: str) -> pa.Table:
         table_name=table_name,
         valid_records=good_table.num_rows,
         invalid_records=bad_table.num_rows,
-        orphans_waiting = (orphan_table.num_rows - expired_orphans.num_rows) if orphan_table.num_rows > 0 else 0,
+        orphans_waiting=(orphan_table.num_rows - expired_orphans.num_rows) if orphan_table.num_rows > 0 else 0,
         run_id = run_id
     )
     if good_table.num_rows == 0:
-        clean_table = good_table.drop([col for col in good_table.column_names if col.startswith('_')])
-        return clean_table
-    return None
+        return None
+
+    clean_table = good_table.drop([col for col in good_table.column_names if col.startswith('_') or col == 'pipeline_run_id'])
+    return clean_table
 
 def _write_to_storage(table: pa.Table, table_name: str, run_id: str, folder_type: str):
     """
