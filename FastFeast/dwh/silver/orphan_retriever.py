@@ -28,7 +28,7 @@ def load_and_clear_orphans(table_name:str) -> pa.Table:
         )
         shutil.rmtree(base_dir)  
         log.info(f"Loaded {orphan_table.num_rows} orphan records for retry", table_name=table_name)
-        return orphan_table.drop(['_pipeline_run_id', "_processed_at"])  
+        return orphan_table.drop(['pipeline_run_id', "_processed_at"])  
     except Exception as e:
         log.error(f"Failed to load orphan records: {e}", table_name=table_name)
         return None
