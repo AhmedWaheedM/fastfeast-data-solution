@@ -5,17 +5,17 @@ database:
   read_only: false         
 
 paths:
-  master_dir: /data/master/
-  batch_dir: data/input/batch/
-  dest_base: FastFeast/input_data
-  stream_dir: /data/input/stream/
-  output_dir: /data/output/
-  log_file: /output/
-  quarantine_file : /validation/
-  report_file : /output/
-  alert_file : /output/
-  check_point_file : /utilities/
-  #metadata_yaml: /FastFeast/pipeline/files_metadata.yaml
+  master_dir: data/master/
+  batch_dir: data/input/batch
+  dest_base: FastFeast/data/bronze/batch
+  stream_dir: data/input/stream/
+  output_dir: data/output/
+  log_file: output/
+  quarantine_file : validation/
+  report_file : output/
+  alert_file : output/
+  check_point_file : utilities/
+  metadata_yaml: pipeline/config/files_metadata.yaml
 
 pipeline:
   batch_size: 1000
@@ -51,7 +51,7 @@ stream:
     json: "*.json"
 
 batch:
-  schedule: "07:00:00" # time-based
+  schedule: "20:00:00" # time-based
   timeout: 1 
   supported_types:
     csv: ".csv"

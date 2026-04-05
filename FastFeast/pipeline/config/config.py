@@ -25,12 +25,13 @@ class Paths:
     report_file : str
     alert_file : str
     check_point_file: str
+    metadata_yaml: str
 
 @dataclass
 class Pipeline:
     batch_size: int
     retry_attempts: int
-    max_workrs: int
+    max_workers: int
     log_level: str
     mode: str
     time_wait: int
@@ -108,7 +109,7 @@ def load(path: str) -> Settings:
     )
 
 #Set path of config.yaml and call load function
-yaml_path = Path(os.getenv("CONFIG_YAML", Path(__file__).parent / "config.yaml"))
+yaml_path = Path(Path(__file__).parent / "config.yaml")
 
 config_settings = load(yaml_path)
 

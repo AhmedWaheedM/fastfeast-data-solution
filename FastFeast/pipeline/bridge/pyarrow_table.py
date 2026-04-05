@@ -12,11 +12,7 @@ from FastFeast.pipeline.config.config import get_config
 
 #############################################################
 
-# Config & Paths
-BASE_DIR = Path(__file__).resolve().parents[3]
-
-SOURCE_BASE = BASE_DIR / "data" / "input" / "batch"
-
+# Config 
 config = get_config()
 
 #############################################################
@@ -78,6 +74,7 @@ def load_file(file_name):
     - convert cleaned file from json/csv into PyArrow Table 
 
     """
+    file_name = str(file_name)
 
     # for file_name in file_path:
     file_csv = file_name.lower().endswith('.csv')
