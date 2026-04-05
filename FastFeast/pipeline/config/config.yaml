@@ -15,11 +15,12 @@ paths:
   report_file : /output/
   alert_file : /output/
   check_point_file : /utilities/
+  #metadata_yaml: /FastFeast/pipeline/files_metadata.yaml
 
 pipeline:
   batch_size: 1000
   retry_attempts: 3
-  max_workrs: 4
+  max_workers: 4
   log_level: INFO
   mode: hybrid 
   time_wait: 60
