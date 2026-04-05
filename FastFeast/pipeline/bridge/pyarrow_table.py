@@ -11,20 +11,23 @@ import pyarrow as pa
 import pyarrow.csv as pv
 from FastFeast.pipeline.config.config import get_config
 
-# ------------------------------------------------------
+#############################################################
+
 # Config & Paths
-# ------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parents[3]
 
-#SOURCE_BASE = BASE_DIR / "data" / "input" / "batch"
+SOURCE_BASE = BASE_DIR / "data" / "input" / "batch"
 
 config = get_config()
 
+#############################################################
 
-# ------------------------------------------------------
-# Clean helper
-# ------------------------------------------------------
+# Clean json files from NaN value
 def clean_value(value, target_type):
+    """
+    - Handle NaN values
+    """
+
     # Handle None
     if value is None:
         return None
@@ -33,23 +36,14 @@ def clean_value(value, target_type):
     if isinstance(value, float) and math.isnan(value):
         return None
 
-    # Type enforcement
-    if target_type == "string":
-        return str(value)
+#############################################################
 
-    if target_type == "float":
-        try:
-            return float(value)
-        except:
-            return None
-
-    return value
-
-
-# ------------------------------------------------------
 # Return json as PyArrow tables
-# ------------------------------------------------------
-def json_to_arrow_table(file_path: Path) -> pa.Table:
+def json_value(file_path):
+    """
+    - Return NaN in files as a string or integer depending on its datatype in the column
+
+    """
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)  # Accecpt Json aray
 
@@ -77,52 +71,31 @@ def json_to_arrow_table(file_path: Path) -> pa.Table:
 
     return pa.Table.from_pylist(cleaned_data)
 
+#############################################################
 
-# ------------------------------------------------------
-# File Loader Dispatcher
-# ------------------------------------------------------
-def load_file(file_path: Path) -> pa.Table:
-    suffix = file_path.suffix.lower()
+# Convert cleaned file to PYArrow table
+def load_file(file_name):
+    """
+    - convert cleaned file from json/csv into PyArrow Table 
 
-    if suffix == ".csv":
-        return pv.read_csv(str(file_path))
+    """
 
-    elif suffix == ".json":
-        return json_to_arrow_table(file_path)
+    # for file_name in file_path:
+    file_csv = file_name.lower().endswith('.csv')
+    file_json = file_name.lower().endswith('.json')
+
+    if file_csv:
+        return pv.read_csv(str(file_name))
+
+    elif file_json:
+        return json_value(file_name)
 
     else:
-        print(f"Unsupported file type: {suffix}")
+        print(f"Unsupported file type")
         return None
 
-
-# ------------------------------------------------------
-# Main Execution
-# ------------------------------------------------------
-# today = datetime.now().date()
-# today_folder_name = today.strftime(config.datetime_handling.date_key_format)
-
-#source_today = SOURCE_BASE / today_folder_name
+#############################################################
 
 
-# if __name__ == "__main__":
-#     if not dest_today.exists():
-#         print("No folder found:", dest_today)
-#         exit()
-
-#     for file_path in dest_today.iterdir():
-
-#         if file_path.is_file():
-#             print(f"Processing: {file_path.name}")
-
-#             table = load_file(file_path)
-
-#             if table is None:
-#                 continue
-
-#             print("Schema:", table.schema)
-#             print("Rows:", table.num_rows)
-#             print(table.to_pandas().head())
-#             print("-" * 50)
-
-#         else:
-#             print("There is no files")
+result = load_file("FastFeast/input_data/today/customers.csv")
+print(result)
