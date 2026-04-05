@@ -10,7 +10,7 @@ from FastFeast.pipeline.config.config import get_config
 from FastFeast.pipeline.bridge.pyarrow_table import load_file
 from FastFeast.utilities.metadata_cash import compare_columns
 from FastFeast.pipeline.validation.schema_validation import validate_table
-from FastFeast.utilities.validation_utils import expected_types, not_null_column, column_format, range, map_format_to_pattern, map_type_to_pyarrow, map_type_to_pattern
+from FastFeast.utilities.validation_utils import expected_types, get_nullable_columns, column_format, get_column_range, map_format_to_pattern, map_type_to_pyarrow, map_type_to_pattern
 
 
 ####################################################
@@ -90,10 +90,10 @@ def process_single_file():
 
         expected_types_str = expected_types(file, type)
         expected_types_pa = map_type_to_pyarrow(expected_types_str)
-        not_null = not_null_column(file, type)
+        not_null = get_nullable_columns(file, type)
         expected_formats_str = column_format(file, type)
         expected_formats = map_format_to_pattern(expected_formats_str)
-        column_range = range(file, type)
+        column_range = get_column_range(file, type)
         expected_pattern = map_type_to_pattern(expected_types_str)
 
         status_list, error_lists, retry_list = validate_table(pa_table, expected_types_pa, expected_pattern, not_null, expected_formats, column_range)
@@ -101,5 +101,3 @@ def process_single_file():
         return status_list, error_lists, retry_list
     
 ####################################################
-
-
