@@ -1,8 +1,12 @@
 from FastFeast.pipeline.config.metadata import load
+from FastFeast.pipeline.config.config import get_config
 from pathlib import Path
+import pyarrow as pa
 
 
-yaml_path = Path(Path(__file__).parent.parent / "pipeline/config/files_metadata.yaml")
+config = get_config()
+
+yaml_path = Path(Path(__file__).parent.parent / config.paths.metadata_yaml)
 metadata_settings = load(yaml_path)
 
 #############################################
@@ -66,3 +70,47 @@ def range(file_name, type):
     return range
 
 ############################################
+
+def _map_type_to_pyarrow(type_str: str) -> pa.DataType:
+    mapping = {
+        'integer': pa.int64(),
+        'varchar': pa.string(),
+        'float': pa.float64(),
+        'boolean': pa.bool_(),
+        'timestamp': pa.timestamp('us'),
+        'date': pa.date32(),
+    }
+    return mapping.get(type_str, pa.string())
+
+############################################
+
+def _map_type_to_pattern(pattern):
+    mapping = {
+        'integer': r"^-?\d+$",
+        'varchar': "",
+        'float': r"^-?\d+(\.\d+)?$",
+        'boolean': r"^(?i:true|false|0|1)$",
+        'timestamp': r"^\d{4}-\d{2}-\d{2}.*$",
+        'date': r"^\d{4}-\d{2}-\d{2}$",
+    }
+    return mapping.get(pattern,"")
+
+############################################
+
+def _map_format_to_pattern(format):
+    mapping = {
+        'email': r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+        'phone': r"^0\d{10}$"
+    }
+    return mapping.get(format,"")
+
+############################################
+
+def map_type_to_pyarrow(expected_types):
+    return {t: _map_type_to_pyarrow(t) for t in expected_types}
+
+def map_type_to_pattern(expected_types):
+    return {t: _map_type_to_pattern(t) for t in expected_types}
+
+def map_format_to_pattern(expected_formats):
+    return {f: _map_format_to_pattern(f) for f in expected_formats}

@@ -1,9 +1,14 @@
 from FastFeast.pipeline.config.metadata import load
+from FastFeast.support.logger import pipeline as log
+from FastFeast.pipeline.config.config import get_config
 from pathlib import Path
 import os
 
 #Call load function to return data from yaml file
-yaml_path = Path(Path(__file__).parent.parent / "pipeline/config/files_metadata.yaml")
+
+config = get_config()
+
+yaml_path = Path(__file__).parent.parent / config.paths.metadata_yaml
 metadata_settings = load(yaml_path)
 
 batch = metadata_settings.batch
@@ -17,7 +22,10 @@ def get_expected_list(file_name, type):
     source = batch if type == 'batch' else stream
 
     for file_meta in source:
+        #print("found file_meta😎")
+        #print("File Name",file_name)
         if file_meta.file_name == file_name:
+            print("file name😋 :  ", file_name)
             return [col.name for col in file_meta.columns]
 
     return None 
@@ -66,7 +74,7 @@ def compare_files(folder_path, pipeline_type = 'batch'):
   - compare actual with expected and return our wanted list
   - log if there is unexpected result
   """
-  expected_list = get_expected_list("customers.csv",pipeline_type)
+  expected_list = get_expected_list("cities.json",pipeline_type)
   actual_list = get_actual_files(folder_path)
   results = compare_lists(actual_list, expected_list)
   if results["missed"]:
@@ -81,13 +89,15 @@ def compare_files(folder_path, pipeline_type = 'batch'):
   
 #############################################
 def compare_columns(pyarrow_table, pipeline_type = 'batch'):
-  expected_list = get_expected_list("customers.csv",pipeline_type)
+  expected_list = get_expected_list("cities.json",pipeline_type)
 
   # for in this directory to get all files of it
   actual_list = list(pyarrow_table.column_names)
+  print("Actual list",actual_list)
+  print("Expected list", expected_list)
   results = compare_lists(actual_list, expected_list)
   if results["missed"]:
-    #logging(f"Columns missed: {', '.join(results['missed'])}")
+    #log(f"Columns missed: {', '.join(results['missed'])}")
     print("log missedddddddddddddddd")
     return False
   if results["extra"]:
