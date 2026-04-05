@@ -38,9 +38,9 @@ def validate_table(pa_table, expected_types, expected_patterns, expected_not_nul
         _propagate_errors(invalid_format_mask, error_lists, col_name, 'format')
       if col_name in expected_range:
         if 'min' in expected_range[col_name]:
-          invalid_range_mask = pc.and_(pc.less_equal(col, expected_range[col_name]['min']), invalid_range_mask)
+          invalid_range_mask = pc.or_(pc.less_equal(col, expected_range[col_name]['min']), invalid_range_mask)
         if 'max' in expected_range[col_name]:
-          invalid_range_mask = pc.and_(pc.greater_equal(col, expected_range[col_name]['max']), invalid_range_mask)
+          invalid_range_mask = pc.or_(pc.greater_equal(col, expected_range[col_name]['max']), invalid_range_mask)
         _propagate_errors(invalid_range_mask, error_lists, col_name, 'range')
 
     except Exception as e:
@@ -60,9 +60,9 @@ def validate_table(pa_table, expected_types, expected_patterns, expected_not_nul
         _propagate_errors(invalid_format_mask, error_lists, col_name, 'format')
       if col_name in expected_range:
         if 'min' in expected_range[col_name]:
-          invalid_range_mask = pc.and_(pc.less_equal(col, expected_range[col_name]['min']), invalid_range_mask)
+          invalid_range_mask = pc.or_(pc.less_equal(col, expected_range[col_name]['min']), invalid_range_mask)
         if 'max' in expected_range[col_name]:
-          invalid_range_mask = pc.and_(pc.greater_equal(col, expected_range[col_name]['max']), invalid_range_mask)
+          invalid_range_mask = pc.or_(pc.greater_equal(col, expected_range[col_name]['max']), invalid_range_mask)
         _propagate_errors(invalid_range_mask, error_lists, col_name, 'range')
 
   status_list = ['INVALID' if e else 'VALID' for e in error_lists]
