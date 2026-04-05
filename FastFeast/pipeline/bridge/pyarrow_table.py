@@ -6,7 +6,6 @@
 import json
 import math
 from pathlib import Path
-from datetime import datetime
 import pyarrow as pa
 import pyarrow.csv as pv
 from FastFeast.pipeline.config.config import get_config
@@ -97,5 +96,5 @@ def load_file(file_name):
 #############################################################
 
 
-result = load_file("FastFeast/input_data/today/customers.csv")
-print(result)
+# result = load_file("FastFeast/input_data/today/customers.csv")
+# print(result)
