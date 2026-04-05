@@ -9,11 +9,18 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.csv as pv
 from FastFeast.pipeline.config.config import get_config
+from FastFeast.pipeline.config.metadata import load
 
 #############################################################
 
 # Config 
 config = get_config()
+
+yaml_path = Path(__file__).parent.parent.parent / config.paths.metadata_yaml
+metadata_settings = load(yaml_path)
+
+batch = metadata_settings.batch
+stream = metadata_settings.stream
 
 #############################################################
 
@@ -30,6 +37,40 @@ def clean_value(value, target_type):
     # Handle NaN
     if isinstance(value, float) and math.isnan(value):
         return None
+    
+    return value
+
+#############################################################
+
+def get_column_types(file_name, source):
+    string_columns = []
+    float_columns = []
+
+    for file_meta in source:
+        if file_meta.file_name == file_name:
+            for column in file_meta.columns:
+                if column.type == "string":
+                    string_columns.append(column.name)
+                elif column.type == "float":
+                    float_columns.append(column.name)
+
+    return string_columns, float_columns
+
+#############################################################
+
+def get_column_types(file_name, source):
+    string_columns = []
+    float_columns = []
+
+    for file_meta in source:
+        if file_meta.file_name == file_name:
+            for column in file_meta.columns:
+                if column.type == "string":
+                    string_columns.append(column.name)
+                elif column.type == "float":
+                    float_columns.append(column.name)
+
+    return string_columns, float_columns
 
 #############################################################
 

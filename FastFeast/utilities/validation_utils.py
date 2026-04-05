@@ -26,14 +26,14 @@ def expected_types(file_name, type):
 
 ############################################
 
-def get_nullable_columns(file_name, type):
+def not_null_column(file_name, type):
     source = metadata_settings.batch if type == 'batch' else metadata_settings.stream
     notnull = []
 
     for file_meta in source:
         if file_meta.file_name == file_name:
             for column in file_meta.columns:
-                if column.nullable is True:
+                if column.nullable is False:
                     notnull.append(column.name)
 
             return notnull  

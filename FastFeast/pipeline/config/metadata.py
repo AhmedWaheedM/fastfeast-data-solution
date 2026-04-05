@@ -33,10 +33,6 @@ class Settings:
     stream: List[FileMeta]
 
 
-
-
-
-
 def load(path: str) -> Settings:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
