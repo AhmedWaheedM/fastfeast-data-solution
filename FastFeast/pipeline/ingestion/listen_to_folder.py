@@ -101,3 +101,22 @@ def process_single_file():
         return status_list, error_lists, retry_list
     
 ####################################################
+
+# if __name__ == '__main__':
+
+#     conn = get_connection()
+#     BASE_DIR = Path(__file__).resolve().parents[3]
+
+#     source_file = BASE_DIR / "data" / "input" / "batch" / "2026-04-05"
+
+#     dest_file = BASE_DIR / "FastFeast" / "input_data" / "batch" / "2026-04-05"
+
+
+#     #print(source_file)
+
+#     copy_files(source_file, dest_file, "002", conn)
+#     status_list, error_lists, retry_list = process_single_file()
+#     print("💖status_list💖  ", status_list)
+#     print("🎶error_lists🎶  ", error_lists)
+#     print("🦄retry_list🦄   ", retry_list)
+#     print("😃💖🐱‍👤😘")
