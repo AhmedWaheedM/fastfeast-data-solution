@@ -1,43 +1,19 @@
-import duckdb
-import threading
+# db_utils.py
+import os
 from pathlib import Path
+from dwh.bronze.file_tracking import init_db
 from pipeline.config.config import load
 
-HERE       = Path(__file__).resolve().parent
-ROOT       = HERE.parent
-PIPELINE   = ROOT / "pipeline"
-CONFIG_PATH = PIPELINE / "config" / "config.yaml"
+_HERE     = Path(__file__).resolve().parent
+_ROOT     = _HERE.parent
+_PIPELINE = _ROOT / "pipeline"
+_CONFIG   = _PIPELINE / "config" / "config.yaml"
 
-DDL_DIRS = [
-    ROOT / "dwh" / "bronze",
-    ROOT / "dwh" / "silver",
-    ROOT / "dwh" / "gold",
-]
+_cfg = load(str(_CONFIG))
 
-connection  = None
-conn_lock   = threading.Lock()
+# ── Single canonical DB path ──────────────────────────────────────
+DB_PATH = (_ROOT / _cfg.paths.output_dir / _cfg.database.file).resolve()
 
-
-def getconnection():
-    global connection
-    if connection is None:                       
-        with conn_lock:                           
-            if connection is None:               
-                cfg     = load(str(CONFIG_PATH))
-                db_path = (PIPELINE / cfg.database.file).resolve()
-                db_path.parent.mkdir(parents=True, exist_ok=True)
-                conn = duckdb.connect(str(db_path))
-                run_ddl(conn)
-                connection = conn                 
-    return connection
-
-
-def run_ddl(conn):
-    for directory in DDL_DIRS:
-        if not directory.exists():
-            continue
-        for filepath in sorted(directory.glob("*.sql")):
-            try:
-                conn.execute(filepath.read_text())
-            except Exception as e:
-                raise RuntimeError(f"DDL failed: {filepath.name}") from e
+def get_connection():
+    os.makedirs(DB_PATH.parent, exist_ok=True)
+    return init_db(str(DB_PATH))
