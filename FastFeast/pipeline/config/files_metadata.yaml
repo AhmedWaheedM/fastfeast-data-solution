@@ -353,19 +353,19 @@ stream:
         nullable: false
       - name: 'customer_id'
         type: 'integer'
-        fk: {pk: 'customer_id', target_dimension: 'DIM_CUSTOMER'}
+        fk: {pk: 'customer_id', target_table: 'customers.csv'}
         nullable: true
       - name: 'restaurant_id'
         type: 'integer'
-        fk: {pk: 'restaurant_id', target_dimension: 'DIM_RESTAURANT'}
+        fk: {pk: 'restaurant_id', target_table: 'restaurants.json'}
         nullable: true
       - name: 'driver_id'
         type: 'integer'
-        fk: {pk: 'driver_id', target_dimension: 'DIM_DRIVER'}
+        fk: {pk: 'driver_id', target_table: 'drivers.csv'}
         nullable: true
       - name: 'priority_id'
         type: 'integer'
-        fk: {pk: 'priority_id', target_dimension: 'DIM_PRIORITY'}
+        fk: {pk: 'priority_id', target_table: 'priorities.csv'}
         nullable: true
       - name: 'total_amount'
         type: 'float'
@@ -393,7 +393,7 @@ stream:
         nullable: false
       - name: 'reason_id'
         type: 'integer'
-        fk: {pk: 'reason_id', target_dimension: 'DIM_REASON'}
+        fk: {pk: 'reason_id', target_table: 'regions.csv'}
         nullable: true
       - name: 'refund_amount'
         type: 'float'
