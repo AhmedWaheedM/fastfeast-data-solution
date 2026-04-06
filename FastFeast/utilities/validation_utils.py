@@ -150,3 +150,22 @@ def get_column_pk(file_name, pipeline_type):
                    return column_name
 
     return column_name
+
+############################################
+
+def get_column_fk(file_name, pipeline_type):
+    source = metadata_settings.batch if pipeline_type == 'batch' else metadata_settings.stream
+    column_fk = {}
+
+    for file_meta in source:
+        if file_meta.file_name == file_name:
+            for column in file_meta.columns:
+                if column.fk:
+                    target_table = column.fk.get("target_table")
+                    column_fk[column.name] = target_table
+
+                    return column_fk  
+    return column_fk
+
+result = get_column_fk('customers.csv', 'batch')
+print(result)
