@@ -2,35 +2,30 @@ import logging
 import shutil
 from pathlib import Path
 
-log = logging.getLogger("bronze_writer")
+from support.logger import pipeline as log
 
-_SCRIPT_DIR  = Path(__file__).resolve().parent         
-_PIPELINE_DIR = _SCRIPT_DIR.parent                      
-_ROOT_DIR     = _PIPELINE_DIR.parent                    
+_PIPELINE_DIR = Path(__file__).resolve().parent.parent   # pipeline/
+_ROOT_DIR     = _PIPELINE_DIR.parent                     # FastFeast/
 BRONZE_ROOT   = _ROOT_DIR / "data" / "bronze"
 
 
-def write(src_filepath: Path, date_str: str, hour: str) :
-    src  = Path(src_filepath)
-    dest = BRONZE_ROOT / date_str / hour / src.name
 
-    log.info(
-        "BRONZE  copy  src=%s  dest=%s",
-        src.name, dest,
-    )
+def write(src_filepath: Path, date_str: str) -> bool:
+    """
+    Copy a raw file into the bronze layer, preserving the hour subfolder.
+    Path: bronze / 2026-03-31 / 08 / orders.json
+    """
+    src       = Path(src_filepath)
+    hour_part = src.parent.name          # e.g. "08"
+    dest      = BRONZE_ROOT / date_str / hour_part / src.name
+
+    log.info("BRONZE  copy  src=%s  dest=%s", src.name, dest)
 
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)         
-        log.info(
-            "BRONZE  ok    file=%s  size=%d bytes",
-            src.name, dest.stat().st_size,
-        )
+        shutil.copy2(src, dest)
+        log.info("BRONZE  ok  file=%s  size=%d bytes", src.name, dest.stat().st_size)
         return True
-
     except Exception as exc:
-        log.error(
-            "BRONZE  FAIL  file=%s  reason=%s",
-            src.name, exc,
-        )
+        log.error("BRONZE  FAIL  file=%s  reason=%s", src.name, exc)
         return False
