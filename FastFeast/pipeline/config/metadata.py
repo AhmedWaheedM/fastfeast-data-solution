@@ -1,49 +1,43 @@
-from pathlib import Path
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from dataclasses import dataclass
 import yaml
+from typing import List
+import os
+from pathlib import Path
+from dacite import from_dict
+from typing import Any, Dict, Optional
 
-from pipeline.config.config import load as load_cfg
-
-HERE        = Path(__file__).resolve().parent
-PIPELINE    = HERE.parent
-CONFIG_PATH = PIPELINE / "config" / "config.yaml"
 
 
-class Column(BaseModel):
+@dataclass
+class Column:
     name: str
     type: str
     pk: bool = False
     nullable: bool = True
 
+    # optional extra metadata
     fk: Optional[Dict[str, Any]] = None
     expected_values: Optional[List[str]] = None
     range: Optional[Dict[str, float]] = None
     pii: Optional[bool] = None
     format: Optional[str] = None
 
-
-class FileEntry(BaseModel):
+@dataclass
+class FileMeta:
     file_name: str
     columns: List[Column]
 
-    class Config:
-        extra = "allow"
+@dataclass
+class Settings:
+    batch: List[FileMeta]
+    stream: List[FileMeta]
 
 
-class MetadataSettings(BaseModel):
-    batch: List[FileEntry]
-    stream: List[FileEntry]
+def load(path: str) -> Settings:
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
 
-
-def load() -> MetadataSettings:
-    cfg = load_cfg(str(CONFIG_PATH))
-    metadata_path = Path(cfg.paths.metadata_file).resolve()
-
-    with open(metadata_path) as f:
-        raw = yaml.safe_load(f)
-
-    return MetadataSettings(**raw)
-
-
-metadata_settings = load()
+    return from_dict(
+        data_class=Settings,
+        data=data,
+    )

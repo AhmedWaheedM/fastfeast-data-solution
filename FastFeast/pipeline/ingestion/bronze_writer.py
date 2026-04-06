@@ -2,7 +2,7 @@ import logging
 import shutil
 from pathlib import Path
 
-from support.logger import pipeline as log
+from FastFeast.support.logger import pipeline as log
 
 _PIPELINE_DIR = Path(__file__).resolve().parent.parent   # pipeline/
 _ROOT_DIR     = _PIPELINE_DIR.parent                     # FastFeast/

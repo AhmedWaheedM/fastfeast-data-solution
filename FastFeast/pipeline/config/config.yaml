@@ -17,6 +17,7 @@ paths:
   check_point_file : utilities/
   metadata_yaml: pipeline/config/files_metadata.yaml
 
+
 pipeline:
   batch_size: 1000
   retry_attempts: 3
@@ -24,6 +25,8 @@ pipeline:
   log_level: INFO
   mode: hybrid 
   time_wait: 60
+  sleep_hours: 1
+  max_attempts: 3
 # every time we run pipeline for test we may change between batch or stream run,
 # also can set this Test : to run pipeline at anytime
 
@@ -51,7 +54,7 @@ stream:
     json: "*.json"
 
 batch:
-  schedule: "7:00:00" # time-based
+  schedule: "18:48:00" # time-based
   timeout: 1 
   supported_types:
     csv: ".csv"

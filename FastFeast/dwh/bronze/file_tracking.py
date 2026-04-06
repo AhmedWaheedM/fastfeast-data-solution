@@ -28,6 +28,7 @@ def init_db(db_path: str):
         LAST_HASH VARCHAR,
         LAST_CHECKPOINT VARCHAR,
         RETRY_NUM INT,
+        ATTEMPT_COUNT INTEGER DEFAULT 0,
         PRIMARY KEY (FILE_PATH, PIPELINE_RUN_ID)
     )
     """)

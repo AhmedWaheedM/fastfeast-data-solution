@@ -135,3 +135,18 @@ def compose_table(pa_table, record_status, error_lists):
   pa_table = pa_table.append_column('_error_reasons', errors_array)
   pa_table = pa_table.append_column('_retry_count', pa.array([0 for _ in range(len(error_lists))]))
   return pa_table
+
+############################################
+
+def get_column_pk(file_name, pipeline_type):
+    source = metadata_settings.batch if pipeline_type == 'batch' else metadata_settings.stream
+    column_name = ''
+
+    for file_meta in source:
+        if file_meta.file_name == file_name.name:
+            for column in file_meta.columns:
+                if column.pk:
+                   column_name = column.name
+                   return column_name
+
+    return column_name

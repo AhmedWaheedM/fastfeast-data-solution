@@ -2,8 +2,8 @@ import time
 import logging
 from datetime import date, datetime
 
-from pipeline.ingestion.file_tracker import generate_run_id
-from pipeline.ingestion.Micro_batch_File_Watcher import run_cycle, SLEEP_HOURS, STREAM_DIR, DB_PATH
+from FastFeast.pipeline.ingestion.file_tracker import generate_run_id
+from FastFeast.pipeline.ingestion.Micro_batch_File_Watcher import run_cycle, SLEEP_HOURS, STREAM_DIR, DB_PATH
 
 log = logging.getLogger("daemon")
 

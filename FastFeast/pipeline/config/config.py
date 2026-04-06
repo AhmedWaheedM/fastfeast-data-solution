@@ -35,6 +35,8 @@ class Pipeline:
     log_level: str
     mode: str
     time_wait: int
+    sleep_hours: int
+    max_attempts: int
 
 # @dataclass
 # class Format:
@@ -110,6 +112,7 @@ def load(path: str) -> Settings:
 
 #Set path of config.yaml and call load function
 yaml_path = Path(Path(__file__).parent / "config.yaml")
+#print("YAMLLLLLLLLLLLLLLLL", yaml_path)
 
 config_settings = load(yaml_path)
 

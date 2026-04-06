@@ -3,8 +3,8 @@ from FastFeast.pipeline.config.config import config_settings
 from FastFeast.dwh.bronze.file_tracking import init_db
 import os
 from pathlib import Path
-from dwh.bronze.file_tracking import init_db
-from pipeline.config.config import load
+from FastFeast.dwh.bronze.file_tracking import init_db
+from FastFeast.pipeline.config.config import load
 
 _HERE     = Path(__file__).resolve().parent
 _ROOT     = _HERE.parent

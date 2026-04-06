@@ -4,17 +4,17 @@ import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from pipeline.config import config
-from pipeline.ingestion.bronze_writer import write as write_bronze
-from pipeline.ingestion.file_tracker import (
+from FastFeast.pipeline.config import config
+from FastFeast.pipeline.ingestion.bronze_writer import write as write_bronze
+from FastFeast.pipeline.ingestion.file_tracker import (
     try_acquire,
     update_stage,
     generate_run_id,
     hash_file,
 )
-from utilities.db_utils import DB_PATH
-from utilities.db_utils import get_connection
-from pipeline.ingestion import daemon
+from FastFeast.utilities.db_utils import DB_PATH
+from FastFeast.utilities.db_utils import get_connection
+from FastFeast.pipeline.ingestion import daemon
 
 # ── Config ────────────────────────────────────────────────────────────────────
 _HERE       = Path(__file__).resolve().parent

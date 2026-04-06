@@ -18,7 +18,8 @@ from datetime import datetime, timedelta
 SEED = 42
 random.seed(SEED)
 
-MASTER_DIR = "D:\\Python\\Fast Feast\\data\\master"
+MASTER_DIR = "../../data/master"
+
 os.makedirs(MASTER_DIR, exist_ok=True)
 
 # Initial counts - these will grow as new customers/drivers are added

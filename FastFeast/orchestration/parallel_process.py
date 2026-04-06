@@ -1,7 +1,7 @@
 from pathlib import Path
-from FastFeast.utilities.validation_utils import (expected_types, not_null_column, column_format, 
+from FastFeast.utilities.validation_utils import (expected_types, not_null_column, column_format, get_column_pk,
                                                   get_column_range, map_format_to_pattern,
-                                                    map_type_to_pyarrow, map_type_to_pattern)
+                                                    map_type_to_pyarrow, map_type_to_pattern, compose_table)
 
 from FastFeast.pipeline.config.config import get_config
 from datetime import datetime
@@ -31,7 +31,7 @@ dest = BASE_DIR / config.paths.dest_base
 ####################################################
 
 #Process single file
-def process_single_file(file, dest_today, run_id, pipeline_type = 'batch'):
+def process_single_file(file, dest_today, run_id, stream_fk_pk_map, pipeline_type = 'batch'):
     """
     - This function takes every process we need to do in one file
     - Then we will pass this to Thread function, to perform all operations on all files
@@ -73,8 +73,11 @@ def process_single_file(file, dest_today, run_id, pipeline_type = 'batch'):
             expected_formats = map_format_to_pattern(expected_formats_str)
             column_range = get_column_range(file, pipeline_type)
             expected_pattern = map_type_to_pattern(expected_types_str)
+            expected_pk = get_column_pk(file, pipeline_type)
 
-            validate_table(pa_table, expected_types_pa, expected_pattern,not_null, expected_formats, column_range)
+            status_list, error_lists, pk_col= validate_table(pa_table, expected_types_pa, expected_pattern,not_null, expected_formats, column_range,expected_pk, pipeline_type)
+            full_table = compose_table(pa_table, status_list, error_lists) #DLQ
+            stream_fk_pk_map[pk_col] = file
 
             return True
 
@@ -90,7 +93,7 @@ def process_single_file(file, dest_today, run_id, pipeline_type = 'batch'):
         
     ####################################################
 
-def process_all_files():
+def process_all_files(stream_fk_pk_map):
     today = datetime.now().date()
     today_folder_name = today.strftime(config_settings.datetime_handling.date_key_format)
 
@@ -112,7 +115,7 @@ def process_all_files():
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
-            executor.submit(process_single_file, file, dest_today, run_id): file
+            executor.submit(process_single_file, file, dest_today, run_id, stream_fk_pk_map): file
             for file in files
         }
         try:
@@ -140,7 +143,7 @@ def process_all_files():
 
 ####################################################
 
-def run_pipeline_listener():
+def run_pipeline_listener(stream_fk_pk_map):
 
     schedule_str = config.batch.schedule  # e.g. "3:00:00"
     parts = schedule_str.split(":")
@@ -206,5 +209,5 @@ def run_pipeline_listener():
 ####################################################
 
 if __name__ == "__main__":
-
-    run_pipeline_listener()
+    stream_fk_pk_map = {}
+    run_pipeline_listener(stream_fk_pk_map)
