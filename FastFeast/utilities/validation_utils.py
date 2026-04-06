@@ -11,12 +11,12 @@ metadata_settings = load(yaml_path)
 
 #############################################
 
-def expected_types(file_name, type):
-    source = metadata_settings.batch if type == 'batch' else metadata_settings.stream
+def expected_types(file_name, pipeline_type):
+    source = metadata_settings.batch if pipeline_type == 'batch' else metadata_settings.stream
     expected_type = {}
 
     for file_meta in source:
-        if file_meta.file_name == file_name:
+        if file_meta.file_name == file_name.name:
             for column in file_meta.columns:
                 expected_type[column.name] = column.type
 
@@ -26,12 +26,12 @@ def expected_types(file_name, type):
 
 ############################################
 
-def not_null_column(file_name, type):
-    source = metadata_settings.batch if type == 'batch' else metadata_settings.stream
+def not_null_column(file_name, pipeline_type):
+    source = metadata_settings.batch if pipeline_type == 'batch' else metadata_settings.stream
     notnull = []
 
     for file_meta in source:
-        if file_meta.file_name == file_name:
+        if file_meta.file_name == file_name.name:
             for column in file_meta.columns:
                 if column.nullable is False:
                     notnull.append(column.name)
@@ -41,12 +41,12 @@ def not_null_column(file_name, type):
 
 ############################################
 
-def column_format(file_name, type):
-    source = metadata_settings.batch if type == 'batch' else metadata_settings.stream
+def column_format(file_name, pipeline_type):
+    source = metadata_settings.batch if pipeline_type == 'batch' else metadata_settings.stream
     columns_format = {}
 
     for file_meta in source:
-        if file_meta.file_name == file_name:
+        if file_meta.file_name == file_name.name:
             for column in file_meta.columns:
                 if column.format:
                     columns_format[column.name] = column.format
@@ -56,12 +56,12 @@ def column_format(file_name, type):
 
 ############################################
 
-def get_column_range(file_name, type):
-    source = metadata_settings.batch if type == 'batch' else metadata_settings.stream
+def get_column_range(file_name, pipeline_type):
+    source = metadata_settings.batch if pipeline_type == 'batch' else metadata_settings.stream
     column_range = {}
 
     for file_meta in source:
-        if file_meta.file_name == file_name:
+        if file_meta.file_name == file_name.name:
             for column in file_meta.columns:
                 if column.range:
                     column_range[column.name] = column.range
@@ -106,11 +106,23 @@ def _map_format_to_pattern(format):
 
 ############################################
 
+# def map_type_to_pyarrow(expected_types):
+#     return {t: _map_type_to_pyarrow(t) for t in expected_types}
+
 def map_type_to_pyarrow(expected_types):
-    return {t: _map_type_to_pyarrow(t) for t in expected_types}
+    return {
+        col: _map_type_to_pyarrow(type_str)
+        for col, type_str in expected_types.items()
+    }
+
+# def map_type_to_pyarrow(expected_types):
+#     return {col: _map_type_to_pyarrow(type_str) for col, type_str in expected_types.items()}
 
 def map_type_to_pattern(expected_types):
     return {t: _map_type_to_pattern(t) for t in expected_types}
+
+# def map_type_to_pattern(expected_types):
+#     return {col: _map_type_to_pattern(type_str) for col, type_str in expected_types.items()}
 
 def map_format_to_pattern(expected_formats):
     return {f: _map_format_to_pattern(f) for f in expected_formats}
