@@ -167,5 +167,5 @@ def get_column_fk(file_name, pipeline_type):
                     return column_fk  
     return column_fk
 
-result = get_column_fk('customers.csv', 'batch')
-print(result)
+# result = get_column_fk('customers.csv', 'batch')
+# print(result)

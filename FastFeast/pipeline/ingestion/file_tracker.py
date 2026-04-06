@@ -53,7 +53,7 @@ def acquire_file(file_path: str, new_hash: str, run_id: str, conn=None) -> None:
         """,
         [file_path, run_id, now, new_hash],
     )
-    conn.commit()
+    #conn.commit()
     conn.close()
     log.info("ACQUIRED  path=%s  run_id=%s", str(file_path), run_id)
 
@@ -78,9 +78,8 @@ def mark_processing(file_path: str, file_hash: str, record_count: int, run_id: s
         """,
         [file_path, datetime.now(), file_hash, record_count, run_id]
     )
-
-    log.info("File marked as processing", file_path=file_path, run_id=run_id)
     conn.close()
+    log.info("File marked as processing", file_path=file_path, run_id=run_id)
 
 
 def mark_processed(file_path: str, status: str, record_count: int, run_id: str) -> None:
@@ -98,7 +97,7 @@ def mark_processed(file_path: str, status: str, record_count: int, run_id: str) 
         """,
         [status, now, record_count, run_id, str(file_path)],
     )
-    conn.commit()
+    #conn.commit()
     conn.close()
     log.info("MARKED  path=%s  status=%s  records=%d", file_path, status, record_count)
 
@@ -114,7 +113,7 @@ def update_stage(file_path: str, stage: str, run_id: str) -> None:
         """,
         [stage, now, run_id, str(file_path)],
     )
-    conn.commit()
+    #conn.commit()
     conn.close()
     log.info("STAGE  path=%s  stage=%s", str(file_path), stage)
 

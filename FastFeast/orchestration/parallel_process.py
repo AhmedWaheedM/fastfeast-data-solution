@@ -31,7 +31,7 @@ dest = BASE_DIR / config.paths.dest_base
 ####################################################
 
 #Process single file
-def process_single_file(file, dest_today, run_id, stream_fk_pk_map, pipeline_type = 'batch'):
+def process_single_file(file, dest_today, run_id, pipeline_type = 'batch'):
     """
     - This function takes every process we need to do in one file
     - Then we will pass this to Thread function, to perform all operations on all files
@@ -77,7 +77,7 @@ def process_single_file(file, dest_today, run_id, stream_fk_pk_map, pipeline_typ
 
             status_list, error_lists, pk_col= validate_table(pa_table, expected_types_pa, expected_pattern,not_null, expected_formats, column_range,expected_pk, pipeline_type)
             full_table = compose_table(pa_table, status_list, error_lists) #DLQ
-            stream_fk_pk_map[pk_col] = file
+            #stream_fk_pk_map[pk_col] = file
 
             return True
 
@@ -93,7 +93,7 @@ def process_single_file(file, dest_today, run_id, stream_fk_pk_map, pipeline_typ
         
     ####################################################
 
-def process_all_files(stream_fk_pk_map):
+def process_all_files():
     today = datetime.now().date()
     today_folder_name = today.strftime(config_settings.datetime_handling.date_key_format)
 
@@ -115,7 +115,7 @@ def process_all_files(stream_fk_pk_map):
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
-            executor.submit(process_single_file, file, dest_today, run_id, stream_fk_pk_map): file
+            executor.submit(process_single_file, file, dest_today, run_id): file
             for file in files
         }
         try:
@@ -143,7 +143,7 @@ def process_all_files(stream_fk_pk_map):
 
 ####################################################
 
-def run_pipeline_listener(stream_fk_pk_map):
+def run_pipeline_listener():
 
     schedule_str = config.batch.schedule  # e.g. "3:00:00"
     parts = schedule_str.split(":")
@@ -209,5 +209,5 @@ def run_pipeline_listener(stream_fk_pk_map):
 ####################################################
 
 if __name__ == "__main__":
-    stream_fk_pk_map = {}
-    run_pipeline_listener(stream_fk_pk_map)
+    #stream_fk_pk_map = {}
+    run_pipeline_listener()
