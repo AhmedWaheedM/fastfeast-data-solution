@@ -1,11 +1,3 @@
-"""
-daemon.py — polling loop for the FastFeast stream monitor.
-
-Owns the while True scheduling logic so stream_monitor.py stays a
-dumb single-cycle worker. Migrating to Airflow later means replacing
-this file only; the worker logic is untouched.
-"""
-
 import time
 import logging
 from datetime import date, datetime
