@@ -15,7 +15,7 @@ stream = metadata_settings.stream
 ############################################
 #file name for test
 
-file_name = "cities.json"
+#file_name = "cities.json"
 
 ############################################
 def get_expected_list(file_name, type):
@@ -69,48 +69,49 @@ def compare_lists(actual_list, expected_list):
 #############################################
 
 #our entry point
-def compare_files(folder_path, pipeline_type = 'batch'):
+def compare_files(file, folder_path, pipeline_type = 'batch'):
   """
   - compare actual with expected and return our wanted list
   - log if there is unexpected result
   """
-  expected_list = get_expected_list(file_name,pipeline_type)
+  expected_list = get_expected_list(file,pipeline_type)
   actual_list = get_actual_files(folder_path)
   results = compare_lists(actual_list, expected_list)
   if results["missed"]:
-    #logging(f"Files missed: {', '.join(results['missed'])}")
-    print("MISSEDDDDDDDDDDDDDDDDDDDD")
+    log.info(f"Files missed: {', '.join(results['missed'])}")
+    #print("MISSEDDDDDDDDDDDDDDDDDDDD")
     return False
   if results["extra"]:
-     print("EXTRAAAAAAAAAAAAAAAAAA")
-    #logging(f"Files extra: {', '.join(results['extra'])}")
+    #print("EXTRAAAAAAAAAAAAAAAAAA")
+    log.info(f"Files extra: {', '.join(results['extra'])}")
   if results["wanted_files"]:
     return results["wanted_files"]
   
 #############################################
-def compare_columns(pyarrow_table, pipeline_type = 'batch'):
-  expected_list = get_expected_list(file_name,pipeline_type)
+def compare_columns(file, pyarrow_table, pipeline_type = 'batch'):
+  expected_list = get_expected_list(file.name ,pipeline_type)
+  #print("FILE PASSED TO EXPECTEDDDDDDDDDDDDDDDDDDDDDDDDDDDD", file)
 
   # for in this directory to get all files of it
   actual_list = list(pyarrow_table.column_names)
-  print("Actual list",actual_list)
-  print("Expected list", expected_list)
+  # print("Actual list",actual_list)
+  # print("Expected list", expected_list)
   results = compare_lists(actual_list, expected_list)
   if results["missed"]:
-    #log(f"Columns missed: {', '.join(results['missed'])}")
-    print("log missedddddddddddddddd")
+    log.info(f"Columns missed: {', '.join(results['missed'])}")
+    #print("log missedddddddddddddddd")
     return False
   if results["extra"]:
     #drop
-    #logging(f"Columns extra: {', '.join(results['extra'])}")
-        print("log extraaaaaaaaaaaaaaaa")
+    log.info(f"Columns extra: {', '.join(results['extra'])}")
+        #print("log extraaaaaaaaaaaaaaaa")
 
   if results["duplicated"]:
-    #logging(f"Columns duplicated: {', '.join(results['duplicated'])}")
+    log.info(f"Columns duplicated: {', '.join(results['duplicated'])}")
     #drop
-        print("log duplicateddddddddddddddd")
+        #print("log duplicateddddddddddddddd")
   if results["wanted_columns"]:
-    print("YEEEEEEEEEEEEEEEEEEES")
+    #print("YEEEEEEEEEEEEEEEEEEES")
     return True
 
 #############################################
