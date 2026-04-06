@@ -114,3 +114,12 @@ def map_type_to_pattern(expected_types):
 
 def map_format_to_pattern(expected_formats):
     return {f: _map_format_to_pattern(f) for f in expected_formats}
+
+############################################
+def compose_table(pa_table, record_status, error_lists):
+  map_type = pa.map_(pa.string(), pa.list_(pa.string()))
+  errors_array = pa.array(error_lists, type=map_type)
+  pa_table = pa_table.append_column('_record_status', pa.array(record_status))
+  pa_table = pa_table.append_column('_error_reasons', errors_array)
+  pa_table = pa_table.append_column('_retry_count', pa.array([0 for _ in range(len(error_lists))]))
+  return pa_table
