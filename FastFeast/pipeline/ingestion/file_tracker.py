@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from utilities.db_utils import getconnection
+from utilities.db_utils import get_connection
 from support.logger import pipeline as log
 
 
@@ -15,46 +15,49 @@ def hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def get_attempts(file_path: str) -> int:
-    conn = getconnection()
+def try_acquire(file_key: str, cycle_id: str, current_hash: str, max_attempts: int) -> bool:
+    conn = get_connection()
     row  = conn.execute(
-        "SELECT ATTEMPT_COUNT FROM FILE_TRACKING WHERE FILE_PATH = ?", [file_path]
+        "SELECT ATTEMPT_COUNT, FILE_HASH, STATUS FROM FILE_TRACKING WHERE FILE_PATH = ?",
+        [file_key]
     ).fetchone()
-    return row[0] if row else 0
+
+    if row:
+        attempts, stored_hash, status = row
+        if attempts >= max_attempts:
+            log.warning("SKIP  max attempts reached (%d)  path=%s", max_attempts, file_key)
+            return False
+        if stored_hash == current_hash and status == "SUCCESS":
+            log.debug("SKIP  unchanged successful file  path=%s", file_key)
+            return False
+
+    acquire_file(file_key, current_hash, cycle_id, conn)
+    return True
 
 
-def get_stored_hash(file_path: str) -> str | None:
-    conn = getconnection()
-    row  = conn.execute(
-        "SELECT FILE_HASH FROM FILE_TRACKING WHERE FILE_PATH = ?", [file_path]
-    ).fetchone()
-    return row[0] if row else None
-
-
-def acquire_file(file_path: str, new_hash: str, run_id: str) -> None:
-    """Atomically upsert hash, increment attempt counter, and mark as PROCESSING."""
+def acquire_file(file_path: str, new_hash: str, run_id: str, conn=None) -> None:
     now  = datetime.now()
-    conn = getconnection()
+    conn = conn or get_connection()
     conn.execute(
         """
-        INSERT INTO FILE_TRACKING (FILE_PATH, FILE_HASH, ATTEMPT_COUNT, STATUS,
-                                   CURRENT_STAGE, PROCESSED_AT, RECORD_COUNT, PIPELINE_RUN_ID)
-        VALUES (?, ?, 1, 'PROCESSING', 'PENDING', ?, 0, ?)
+        INSERT INTO FILE_TRACKING (FILE_PATH, PIPELINE_RUN_ID, PROCESSED_AT, STATUS,
+                                   CURRENT_STAGE, RECORD_COUNT, FILE_HASH, ATTEMPT_COUNT)
+        VALUES (?, ?, ?, 'PROCESSING', 'PENDING', 0, ?, 1)
         ON CONFLICT (FILE_PATH) DO UPDATE SET
             FILE_HASH       = excluded.FILE_HASH,
-            ATTEMPT_COUNT   = FILE_TRACKING.ATTEMPT_COUNT + 1,
             STATUS          = 'PROCESSING',
             PROCESSED_AT    = excluded.PROCESSED_AT,
-            PIPELINE_RUN_ID = excluded.PIPELINE_RUN_ID
+            PIPELINE_RUN_ID = excluded.PIPELINE_RUN_ID,
+            ATTEMPT_COUNT   = FILE_TRACKING.ATTEMPT_COUNT + 1
         """,
-        [file_path, new_hash, now, run_id],
+        [file_path, run_id, now, new_hash],
     )
     conn.commit()
-    log.info("File acquired", file_path=file_path, run_id=run_id)
+    log.info("ACQUIRED  path=%s  run_id=%s", file_path, run_id)
 
 
 def is_processed(file_path: str) -> bool:
-    conn   = getconnection()
+    conn   = get_connection()
     result = conn.execute(
         "SELECT STATUS FROM FILE_TRACKING WHERE FILE_PATH = ?", [file_path]
     ).fetchone()
@@ -63,7 +66,7 @@ def is_processed(file_path: str) -> bool:
 
 def mark_processed(file_path: str, status: str, record_count: int, run_id: str) -> None:
     now  = datetime.now()
-    conn = getconnection()
+    conn = get_connection()
     conn.execute(
         """
         UPDATE FILE_TRACKING
@@ -76,24 +79,12 @@ def mark_processed(file_path: str, status: str, record_count: int, run_id: str) 
         [status, now, record_count, run_id, file_path],
     )
     conn.commit()
-    log.info(
-        "File marked as processed",
-        file_path=file_path, status=status,
-        record_count=record_count, run_id=run_id,
-    )
-
-
-def get_current_stage(file_path: str) -> str:
-    conn   = getconnection()
-    result = conn.execute(
-        "SELECT CURRENT_STAGE FROM FILE_TRACKING WHERE FILE_PATH = ?", [file_path]
-    ).fetchone()
-    return result[0] if result else "PENDING"
+    log.info("MARKED  path=%s  status=%s  records=%d", file_path, status, record_count)
 
 
 def update_stage(file_path: str, stage: str, run_id: str) -> None:
     now  = datetime.now()
-    conn = getconnection()
+    conn = get_connection()
     conn.execute(
         """
         UPDATE FILE_TRACKING
@@ -103,7 +94,15 @@ def update_stage(file_path: str, stage: str, run_id: str) -> None:
         [stage, now, run_id, file_path],
     )
     conn.commit()
-    log.info("File stage updated", file_path=file_path, stage=stage, run_id=run_id)
+    log.info("STAGE  path=%s  stage=%s", file_path, stage)
+
+
+def get_current_stage(file_path: str) -> str:
+    conn   = get_connection()
+    result = conn.execute(
+        "SELECT CURRENT_STAGE FROM FILE_TRACKING WHERE FILE_PATH = ?", [file_path]
+    ).fetchone()
+    return result[0] if result else "PENDING"
 
 
 def generate_run_id() -> str:
