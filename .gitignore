@@ -1,65 +1,53 @@
-# ── Data & Caches ────────────────────────────────────────────────
+# Data files
 data/
-<<<<<<< HEAD
-docs/
-=======
 data_input/
 data_archive/
 documentation/
 input_data/
 #test/
->>>>>>> origin/dev
 
-# ── Python ───────────────────────────────────────────────────────
+# Databases
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets & local config
+.env
+.env.local
+local_settings.yaml
+secrets.yaml
+
+# Logs & reports
+*.log
+logs/
+*.pdf
+reports/
+
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-.Python
+*$py.class
 *.egg-info/
 dist/
 build/
-.eggs/
 
-# ── Virtual Environments ─────────────────────────────────────────
+# Virtual environments
 .venv/
 venv/
 env/
+ENV/
 
-# ── Environment & Secrets ────────────────────────────────────────
-.env
-*.env
-config.local.yaml
-secrets.yaml
-
-# ── Database Files ───────────────────────────────────────────────
-*.duckdb
-*.duckdb.wal
-
-# ── Logs ─────────────────────────────────────────────────────────
-*.log
-logs/
-
-# ── IDE ──────────────────────────────────────────────────────────
-.vscode/
-.idea/
-*.iml
-
-# ── OS ───────────────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-
-# ── Jupyter ──────────────────────────────────────────────────────
-.ipynb_checkpoints/
-*.ipynb
-
-# ── Streamlit ────────────────────────────────────────────────────
-.streamlit/
-
-# ── Pytest / Coverage ────────────────────────────────────────────
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
+test.py
 
-# ── MyPy ─────────────────────────────────────────────────────────
-.mypy_cache/
+# OS 
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

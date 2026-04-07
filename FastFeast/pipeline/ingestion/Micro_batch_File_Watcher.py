@@ -1,34 +1,6 @@
 import os
 import logging
 import argparse
-<<<<<<< HEAD
-import threading
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from pipeline.config import config
-from pipeline.ingestion.bronze_writer import write as write_bronze
-from pipeline.ingestion.file_tracker import (
-    is_processed,
-    acquire_file,
-    mark_processed,
-    update_stage,
-    generate_run_id,
-    get_attempts,
-    get_stored_hash,
-    hash_file,
-)
-
-# ── Config ────────────────────────────────────────────────────────────────────
-_HERE       = Path(__file__).resolve().parent       # pipeline/ingestion/
-_PIPELINE   = _HERE.parent                          # pipeline/
-_ROOT       = _PIPELINE.parent                      # FastFeast/
-CONFIG_PATH = _PIPELINE / "config" / "config.yaml"
-
-cfg = config.load(str(CONFIG_PATH))
-STREAM_DIR   = Path(cfg.paths.stream_dir).resolve()
-DB_PATH      = Path(os.path.normpath(_PIPELINE / cfg.database.file)).resolve()
-=======
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from FastFeast.pipeline.bridge.pyarrow_table import load_file
@@ -59,7 +31,6 @@ CONFIG_PATH = _PIPELINE / "config" / "config.yaml"
 
 cfg = get_config()
 STREAM_DIR   = Path(cfg.paths.stream_dir).resolve()
->>>>>>> origin/dev
 BRONZE_ROOT  = _ROOT / "data"
 
 MAX_WORKERS  = cfg.pipeline.max_workers
@@ -71,15 +42,6 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(message)s",
     datefmt="%H:%M:%S",
 )
-<<<<<<< HEAD
-log     = logging.getLogger("stream_monitor")
-db_lock = threading.Lock()
-
-
-try:
-    from pipeline.config.metadata import metadata_settings
-    KNOWN_FILES = {f.file_name for f in metadata_settings.stream}
-=======
 log = logging.getLogger("stream_monitor")
 yaml_path = Path(__file__).parent.parent.parent / cfg.paths.metadata_yaml
 
@@ -89,7 +51,6 @@ try:
     from FastFeast.pipeline.config.metadata import load
     meta = load(yaml_path)
     KNOWN_FILES = {f.file_name for f in meta.stream}
->>>>>>> origin/dev
 except Exception as _e:
     log.warning("Could not load KNOWN_FILES from metadata, using defaults: %s", _e)
     KNOWN_FILES = {"orders.json", "tickets.csv", "ticket_events.json"}
@@ -97,26 +58,7 @@ except Exception as _e:
 
 # ── File processing ───────────────────────────────────────────────────────────
 
-<<<<<<< HEAD
-def try_acquire(file_key: str, cycle_id: str, current_hash: str) -> bool:
-    attempts = get_attempts(file_key)
-    if attempts >= MAX_ATTEMPTS:
-        log.warning("SKIP  max attempts reached (%d)  path=%s", MAX_ATTEMPTS, file_key)
-        return False
-
-    if get_stored_hash(file_key) == current_hash and is_processed(file_key):
-        log.debug("SKIP  unchanged successful file  path=%s", file_key)
-        return False
-
-    acquire_file(file_key, current_hash, cycle_id)
-    log.info("ACQUIRED  path=%s  attempt=%d", file_key, attempts + 1)
-    return True
-
-
-def process_file(filepath: Path, cycle_id: str):
-=======
 def process_file(filepath: Path, cycle_id: str, pipeline_type="stream"):
->>>>>>> origin/dev
     file_key = str(filepath.resolve())
 
     if filepath.name not in KNOWN_FILES:
@@ -129,25 +71,16 @@ def process_file(filepath: Path, cycle_id: str, pipeline_type="stream"):
 
     current_hash = hash_file(filepath)
 
-<<<<<<< HEAD
-    with db_lock:
-        acquired = try_acquire(file_key, cycle_id, current_hash)
-
-=======
     # ── Stage 1: PENDING — file detected, waiting to be processed
     update_stage(file_key, "PENDING", cycle_id)
     log.info("PENDING  file detected  path=%s", filepath)
 
     acquired = try_acquire(file_key, cycle_id, current_hash, MAX_ATTEMPTS)
->>>>>>> origin/dev
     if not acquired:
         return filepath.stem, None
 
     byte_count = filepath.stat().st_size
     log.info("READ  ok  path=%s  size=%d bytes", filepath, byte_count)
-<<<<<<< HEAD
-    update_stage(file_key, "WRITING", cycle_id)
-=======
 
     # ── Stage 2: PROCESSING — ingestion has started
     update_stage(file_key, "PROCESSING", cycle_id)
@@ -175,18 +108,10 @@ def process_file(filepath: Path, cycle_id: str, pipeline_type="stream"):
 
     #         return True
 
->>>>>>> origin/dev
     return filepath.stem, (filepath, byte_count)
 
 
 def process_date_folder(date_folder: Path, cycle_id: str) -> dict:
-<<<<<<< HEAD
-    """
-    Process all known files inside numbered sub-folders of date_folder.
-    Path: stream_dir / 2026-03-31 / 01 / orders.json
-    """
-=======
->>>>>>> origin/dev
     futures = {}
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for sub_folder in sorted(date_folder.iterdir()):
@@ -215,17 +140,6 @@ def process_date_folder(date_folder: Path, cycle_id: str) -> dict:
 def write_results(date_str: str, batch: dict, cycle_id: str):
     for table_name, ((filepath, byte_count), file_key) in batch.items():
         log.info("WRITE  file=%s  bytes=%d", filepath.name, byte_count)
-<<<<<<< HEAD
-        ok     = write_bronze(filepath, date_str)
-        status = "SUCCESS" if ok else "FAILED"
-        if not ok:
-            log.error("WRITE  FAIL  file=%s  — marking FAILED", filepath.name)
-        mark_processed(file_key, status, byte_count, cycle_id)
-
-
-def run_cycle(date_str: str, cycle_id: str):
-    """Process all files for a single date. Returns after one pass."""
-=======
 
         # ── Ingestion
         ok = write_bronze(filepath, date_str)
@@ -235,7 +149,6 @@ def run_cycle(date_str: str, cycle_id: str):
 
 
 def run_cycle(date_str: str, cycle_id: str):
->>>>>>> origin/dev
     date_folder = STREAM_DIR / date_str
     if not date_folder.exists():
         log.info("CYCLE  folder not found yet  path=%s", date_folder)
@@ -251,14 +164,7 @@ def run_cycle(date_str: str, cycle_id: str):
 
 def main():
     parser = argparse.ArgumentParser(description="FastFeast micro-batch stream monitor")
-<<<<<<< HEAD
-    parser.add_argument(
-        "--date", default=None,
-        help="Date to monitor (YYYY-MM-DD). Omit to track today.",
-    )
-=======
     parser.add_argument("--date", default=None, help="Date to monitor (YYYY-MM-DD).")
->>>>>>> origin/dev
     parser.add_argument("--once", action="store_true", help="Single pass then exit")
     args = parser.parse_args()
 
@@ -270,11 +176,8 @@ def main():
             print("ERROR  invalid date: {}  (expected YYYY-MM-DD)".format(args.date))
             import sys; sys.exit(1)
 
-<<<<<<< HEAD
-=======
     get_connection()
 
->>>>>>> origin/dev
     if args.once:
         from datetime import date
         current_date = args.date or date.today().isoformat()
@@ -282,16 +185,8 @@ def main():
         log.info("ONCE  cycle_id=%s  date=%s", cycle_id, current_date)
         run_cycle(current_date, cycle_id)
     else:
-<<<<<<< HEAD
-        from pipeline.ingestion import daemon
-=======
->>>>>>> origin/dev
         daemon.run(explicit_date=args.date)
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     main()
-=======
-    main()
->>>>>>> origin/dev

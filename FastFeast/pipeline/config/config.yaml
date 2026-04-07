@@ -1,24 +1,4 @@
 database:
-<<<<<<< HEAD
-  type: duckdb
-  name: fastfeast
-  file: fastfeast.duckdb
-  read_only: false
-
-paths:
-  data_dir:       data/
-  bronze_dir:     bronze/
-  master_dir:     data/master/
-  batch_dir:      data/batch/
-  stream_dir:     ../data/stream/
-  output_dir:     data/output/
-  log_dir:        logs/
-  quarantine_dir: data/quarantine/
-  report_dir:     data/reports/
-  alert_dir:      data/alerts/
-  checkpoint_dir: data/checkpoints/
-  metadata_file:  pipeline/config/files_metadata.yaml
-=======
   type: duckdb             
   file: fastfeast         
   db_name: fastfeast.duckdb  
@@ -37,23 +17,10 @@ paths:
   check_point_file : utilities/
   metadata_yaml: pipeline/config/files_metadata.yaml
 
->>>>>>> origin/dev
 
 pipeline:
   batch_size: 1000
   retry_attempts: 3
-<<<<<<< HEAD
-  log_level: INFO
-  mode: hybrid
-  max_workers: 4
-  sleep_hours: 1
-  max_attempts: 3
-
-export:
-  enabled: true
-  format: parquet
-  target_layer: gold
-=======
   max_workers: 4
   log_level: INFO
   mode: hybrid 
@@ -62,7 +29,6 @@ export:
   max_attempts: 3
 # every time we run pipeline for test we may change between batch or stream run,
 # also can set this Test : to run pipeline at anytime
->>>>>>> origin/dev
 
 datetime_handling:
   extract_date_key: true
@@ -76,31 +42,12 @@ logging:
   rotate: daily
   backup_count: 7
   level: INFO
-  max_bytes:   5242880
-  fmt:         "%(asctime)s  %(levelname)-8s  [%(name)s]  %(message)s"
-  datefmt:     "%Y-%m-%dT%H:%M:%S"
 
 alerts:
-  email:         ehabnasr406@gmail.com
-  on_fail:       true
-  smtp_host:     smtp.gmail.com
-  smtp_port:     587
-  smtp_user:     ehabnasr406@gmail.com
-  slack_webhook: ""
-  max_queue_size:       100
-  send_timeout_sec:     15
-  shutdown_timeout_sec: 30
+  email: supervisor@gmail.com
+  on_fail: true
 
 stream:
-<<<<<<< HEAD
-  poll_interval_sec: 30
-  file_pattern: ["*.csv", "*.json"]
-
-batch:
-  schedule: daily
-  file_pattern: ["*.csv", "*.json"]
-  max_files_per_run: 10
-=======
   poll_interval_sec: 30      # event-based, check every 30 seconds
   supported_types:
     csv: "*.csv"
@@ -116,12 +63,8 @@ batch:
   encoding: "utf-8" 
 # this will be detected through experience with data, or we can calc the time for each batch
 # and take the batch with the best time 
->>>>>>> origin/dev
 
 threshold:
   max_open: 1
   max_response: 15
-
-log_parser:
-  tail_per_file: 500
-  filter_last_n: 200
+  #orphan_rate: 
