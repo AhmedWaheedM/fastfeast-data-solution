@@ -101,3 +101,9 @@ def load(path: str) -> Settings:
         batch=Batch(**data["batch"]),
         threshold=Threshold(**data["threshold"])
     )
+
+import os
+from pathlib import Path
+
+DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
+config_settings = load(str(DEFAULT_CONFIG_PATH))
