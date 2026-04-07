@@ -15,7 +15,7 @@ def mask_pii(table: pa.Table, table_name: str, pii_config: dict) -> pa.Table:
         if col_name not in table.column_names:
             log.warning(f"PII column '{col_name}' defined in config but missing from {table_name}.")            
             continue
-        col_index = table.get_schema().get_field_index(col_name)
+        col_index = table.schema.get_field_index(col_name)
         try:
             if mask_type == 'redact':
                 redacted_array = pa.array(['[REDACTED]'] * table.num_rows, type=pa.string())
@@ -30,19 +30,20 @@ def mask_pii(table: pa.Table, table_name: str, pii_config: dict) -> pa.Table:
                 table = table.set_column(col_index, col_name, masked_email)
 
             elif mask_type == 'partial_prefix_3':
-                # The Vodafone Trick: Keep first 3 chars, turn the rest into 8 asterisks
+                # RE2 Safe: Capture first 3 chars in group 1 (\1), replace the rest with asterisks
                 masked_phone = pc.replace_substring_regex(
                     table[col_name],
-                    pattern='(?<=^.{3}).*', 
-                    replacement='********'
+                    pattern=r'^(.{3}).*', 
+                    replacement=r'\1********'
                 )
                 table = table.set_column(col_index, col_name, masked_phone)
 
             elif mask_type == 'last_four':
+                # RE2 Safe: Capture last 4 chars in group 1 (\1), replace the front with asterisks
                 masked_cc = pc.replace_substring_regex(
                     table[col_name],
-                    pattern='.(?=.{4})', 
-                    replacement='*'
+                    pattern=r'^.*(.{4})$', 
+                    replacement=r'************\1'
                 )
                 table = table.set_column(col_index, col_name, masked_cc)
 
