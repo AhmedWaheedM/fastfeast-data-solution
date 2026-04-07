@@ -344,7 +344,7 @@ stream:
   # Transactional tables
   # ------------------------------------------------------------
   - file_name: 'orders.json'
-    target_fact: 'FACT_ORDER'
+    target_fact: 'FACT_TICKET_LIFECYCLE'
     write_priority: 1
     columns:
       - name: 'order_id'
@@ -353,19 +353,19 @@ stream:
         nullable: false
       - name: 'customer_id'
         type: 'integer'
-        fk: {pk: 'customer_id', target_table: 'customers.csv'}
+        fk: {pk: 'customer_id', target_dimension: 'DIM_CUSTOMER'}
         nullable: true
       - name: 'restaurant_id'
         type: 'integer'
-        fk: {pk: 'restaurant_id', target_table: 'restaurants.json'}
+        fk: {pk: 'restaurant_id', target_dimension: 'DIM_RESTAURANT'}
         nullable: true
       - name: 'driver_id'
         type: 'integer'
-        fk: {pk: 'driver_id', target_table: 'drivers.csv'}
+        fk: {pk: 'driver_id', target_dimension: 'DIM_DRIVER'}
         nullable: true
       - name: 'priority_id'
         type: 'integer'
-        fk: {pk: 'priority_id', target_table: 'priorities.csv'}
+        fk: {pk: 'priority_id', target_dimension: 'DIM_PRIORITY'}
         nullable: true
       - name: 'total_amount'
         type: 'float'
@@ -380,7 +380,7 @@ stream:
         nullable: true      
 
   - file_name: 'tickets.csv'
-    target_fact: 'FACT_ORDER'
+    target_fact: 'FACT_TICKET_LIFECYCLE'
     write_priority: 2
     columns:
       - name: 'ticket_id'
@@ -389,11 +389,11 @@ stream:
         nullable: false
       - name: 'order_id'
         type: 'varchar'
-        fk: {pk: 'order_id', target_fact: 'FACT_ORDER'}
+        fk: {pk: 'order_id', target_fact: 'FACT_TICKET_LIFECYCLE'}
         nullable: false
       - name: 'reason_id'
         type: 'integer'
-        fk: {pk: 'reason_id', target_table: 'regions.csv'}
+        fk: {pk: 'reason_id', target_dimension: 'DIM_REASON'}
         nullable: true
       - name: 'refund_amount'
         type: 'float'
@@ -408,7 +408,7 @@ stream:
         nullable: false
 
   - file_name: 'ticket_events.json'
-    target_fact: 'FACT_ORDER'
+    target_fact: 'FACT_TICKET_LIFECYCLE'
     write_priority: 3
     columns:
       - name: 'event_id'
