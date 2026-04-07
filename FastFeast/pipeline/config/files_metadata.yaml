@@ -344,7 +344,7 @@ stream:
   # Transactional tables
   # ------------------------------------------------------------
   - file_name: 'orders.json'
-    target_fact: 'FACT_ORDER'
+    target_fact: 'FACT_TICKET_LIFECYCLE'
     write_priority: 1
     columns:
       - name: 'order_id'
@@ -380,7 +380,7 @@ stream:
         nullable: true      
 
   - file_name: 'tickets.csv'
-    target_fact: 'FACT_ORDER'
+    target_fact: 'FACT_TICKET_LIFECYCLE'
     write_priority: 2
     columns:
       - name: 'ticket_id'
@@ -389,7 +389,7 @@ stream:
         nullable: false
       - name: 'order_id'
         type: 'varchar'
-        fk: {pk: 'order_id', target_fact: 'FACT_ORDER'}
+        fk: {pk: 'order_id', target_fact: 'FACT_TICKET_LIFECYCLE'}
         nullable: false
       - name: 'reason_id'
         type: 'integer'
@@ -408,7 +408,7 @@ stream:
         nullable: false
 
   - file_name: 'ticket_events.json'
-    target_fact: 'FACT_ORDER'
+    target_fact: 'FACT_TICKET_LIFECYCLE'
     write_priority: 3
     columns:
       - name: 'event_id'
