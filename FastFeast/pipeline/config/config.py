@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 import yaml
+from pathlib import Path
+import os
+from dacite import from_dict, Config
 
 
 @dataclass
 class Database:
     type: str
-    name: str
+    db_name: str
     file: str
     read_only: bool
 
@@ -14,6 +17,7 @@ class Database:
 class Paths:
     master_dir: str
     batch_dir: str
+    dest_base: str
     stream_dir: str
     output_dir: str
     log_file: str
@@ -21,20 +25,21 @@ class Paths:
     report_file : str
     alert_file : str
     check_point_file: str
+    metadata_yaml: str
 
 @dataclass
 class Pipeline:
     batch_size: int
     retry_attempts: int
-    #max_threads: int
+    max_workers: int
     log_level: str
     mode: str
+    time_wait: int
 
-@dataclass
-class Export:
-    enabled: bool
-    format: str
-    target_layer: str
+# @dataclass
+# class Format:
+#     date: Datetime
+
 
 @dataclass
 class Datetime:
@@ -43,6 +48,7 @@ class Datetime:
     date_key_format: str
     time_key_format: str
     keep_original_timestamp: bool
+    date_time: str
 
 @dataclass
 class Logging:
@@ -56,15 +62,23 @@ class Alerts:
   on_fail: bool
 
 @dataclass
-class Stream:
-  poll_interval_sec: int     
-  file_pattern: list 
+class SupportedTypes:
+   csv: str
+   json: str
 
 @dataclass
 class Batch:
-  schedule: str
-  file_pattern: list 
-  max_files_per_run: int 
+    schedule: str
+    timeout: int
+    supported_types: SupportedTypes
+    max_files_per_run: int
+    encoding: str
+
+@dataclass
+class Stream:
+   poll_interval_sec: int     
+   supported_types: SupportedTypes
+
 @dataclass
 class Threshold:
    max_open: int
@@ -76,7 +90,6 @@ class Settings:
     database: Database
     paths: Paths
     pipeline: Pipeline
-    export: Export
     datetime_handling: Datetime
     logging: Logging
     alerts: Alerts
@@ -89,21 +102,25 @@ def load(path: str) -> Settings:
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
-    return Settings(
-        database=Database(**data["database"]),
-        paths=Paths(**data["paths"]),
-        pipeline=Pipeline(**data["pipeline"]),
-        export=Export(**data["export"]),
-        datetime_handling=Datetime(**data["datetime_handling"]),
-        logging=Logging(**data["logging"]),
-        alerts=Alerts(**data["alerts"]),
-        stream=Stream(**data["stream"]),
-        batch=Batch(**data["batch"]),
-        threshold=Threshold(**data["threshold"])
+    return from_dict(
+        data_class=Settings,
+        data=data,
+        config=Config(strict=True) 
     )
 
-import os
-from pathlib import Path
+#Set path of config.yaml and call load function
+yaml_path = Path(Path(__file__).parent / "config.yaml")
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
-config_settings = load(str(DEFAULT_CONFIG_PATH))
+config_settings = load(yaml_path)
+
+
+# ------------------------------------------------------
+# Lazy Config Loader
+# ------------------------------------------------------
+_config = None
+
+def get_config():
+    global _config
+    if _config is None:
+        _config = load(yaml_path)
+    return _config
