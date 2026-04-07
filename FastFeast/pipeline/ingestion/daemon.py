@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 daemon.py — polling loop for the FastFeast stream monitor.
 
@@ -6,12 +7,19 @@ dumb single-cycle worker. Migrating to Airflow later means replacing
 this file only; the worker logic is untouched.
 """
 
+=======
+>>>>>>> origin/dev
 import time
 import logging
 from datetime import date, datetime
 
+<<<<<<< HEAD
 from pipeline.ingestion.file_tracker import generate_run_id
 from pipeline.ingestion.Micro_batch_File_Watcher import run_cycle, SLEEP_HOURS, STREAM_DIR, DB_PATH
+=======
+from FastFeast.pipeline.ingestion.file_tracker import generate_run_id
+from FastFeast.pipeline.ingestion.Micro_batch_File_Watcher import run_cycle, SLEEP_HOURS, STREAM_DIR, DB_PATH
+>>>>>>> origin/dev
 
 log = logging.getLogger("daemon")
 

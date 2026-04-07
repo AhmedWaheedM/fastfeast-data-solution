@@ -14,6 +14,9 @@ import os
 from dataclasses import dataclass, field
 
 import yaml
+from pathlib import Path
+import os
+from dacite import from_dict, Config
 
 try:
     from dotenv import load_dotenv
@@ -28,14 +31,21 @@ except ImportError:
 
 @dataclass
 class Database:
+<<<<<<< HEAD
     type:      str
     name:      str
     file:      str
+=======
+    type: str
+    db_name: str
+    file: str
+>>>>>>> origin/dev
     read_only: bool
 
 
 @dataclass
 class Paths:
+<<<<<<< HEAD
     # FIX #1: added data_dir — was missing, causing AttributeError on load
     # which silenced the entire config block (including alert email/SMTP creds)
     data_dir:       str
@@ -51,11 +61,25 @@ class Paths:
     checkpoint_dir: str
     metadata_file:  str
 
+=======
+    master_dir: str
+    batch_dir: str
+    dest_base: str
+    stream_dir: str
+    output_dir: str
+    log_file: str
+    quarantine_file: str
+    report_file : str
+    alert_file : str
+    check_point_file: str
+    metadata_yaml: str
+>>>>>>> origin/dev
 
 @dataclass
 class Pipeline:
     batch_size:     int
     retry_attempts: int
+<<<<<<< HEAD
     log_level:      str
     mode:           str
     max_workers:    int
@@ -68,6 +92,19 @@ class Export:
     enabled:      bool
     format:       str
     target_layer: str
+=======
+    max_workers: int
+    log_level: str
+    mode: str
+    time_wait: int
+    sleep_hours: int
+    max_attempts: int
+
+# @dataclass
+# class Format:
+#     date: Datetime
+
+>>>>>>> origin/dev
 
 
 @dataclass
@@ -77,6 +114,7 @@ class DatetimeHandling:
     date_key_format:         str
     time_key_format:         str
     keep_original_timestamp: bool
+    date_time: str
 
 
 @dataclass
@@ -102,6 +140,7 @@ class Alerts:
     shutdown_timeout_sec: int 
 
 @dataclass
+<<<<<<< HEAD
 class Stream:
     poll_interval_sec: int
     file_pattern:      list
@@ -113,6 +152,24 @@ class Batch:
     file_pattern:      list
     max_files_per_run: int
 
+=======
+class SupportedTypes:
+   csv: str
+   json: str
+
+@dataclass
+class Batch:
+    schedule: str
+    timeout: int
+    supported_types: SupportedTypes
+    max_files_per_run: int
+    encoding: str
+
+@dataclass
+class Stream:
+   poll_interval_sec: int     
+   supported_types: SupportedTypes
+>>>>>>> origin/dev
 
 @dataclass
 class Threshold:
@@ -127,6 +184,7 @@ class LogParser:
 
 @dataclass
 class Settings:
+<<<<<<< HEAD
     database:          Database
     paths:             Paths
     pipeline:          Pipeline
@@ -139,6 +197,17 @@ class Settings:
     threshold:         Threshold
     log_parser:        LogParser = field(default_factory=LogParser)
     smtp_password: str = field(default="", repr=False)
+=======
+    database: Database
+    paths: Paths
+    pipeline: Pipeline
+    datetime_handling: Datetime
+    logging: Logging
+    alerts: Alerts
+    stream: Stream
+    batch: Batch
+    threshold: Threshold
+>>>>>>> origin/dev
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +219,7 @@ def load(path: str) -> Settings:
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
+<<<<<<< HEAD
     return Settings(
         database          = Database(**data["database"]),
         paths             = Paths(**data["paths"]),
@@ -166,6 +236,28 @@ def load(path: str) -> Settings:
     )
 import os
 from pathlib import Path
+=======
+    return from_dict(
+        data_class=Settings,
+        data=data,
+        config=Config(strict=True) 
+    )
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
-config_settings = load(str(DEFAULT_CONFIG_PATH))
+#Set path of config.yaml and call load function
+yaml_path = Path(Path(__file__).parent / "config.yaml")
+#print("YAMLLLLLLLLLLLLLLLL", yaml_path)
+>>>>>>> origin/dev
+
+config_settings = load(yaml_path)
+
+
+# ------------------------------------------------------
+# Lazy Config Loader
+# ------------------------------------------------------
+_config = None
+
+def get_config():
+    global _config
+    if _config is None:
+        _config = load(yaml_path)
+    return _config

@@ -18,7 +18,12 @@ from datetime import datetime, timedelta
 SEED = 42
 random.seed(SEED)
 
+<<<<<<< HEAD
 MASTER_DIR = "../data/master"
+=======
+MASTER_DIR = "../../data/master"
+
+>>>>>>> origin/dev
 os.makedirs(MASTER_DIR, exist_ok=True)
 
 print("Generating master data...", MASTER_DIR)

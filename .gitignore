@@ -1,6 +1,14 @@
 # ── Data & Caches ────────────────────────────────────────────────
 data/
+<<<<<<< HEAD
 docs/
+=======
+data_input/
+data_archive/
+documentation/
+input_data/
+#test/
+>>>>>>> origin/dev
 
 # ── Python ───────────────────────────────────────────────────────
 __pycache__/

@@ -1,4 +1,5 @@
 database:
+<<<<<<< HEAD
   type: duckdb
   name: fastfeast
   file: fastfeast.duckdb
@@ -17,10 +18,31 @@ paths:
   alert_dir:      data/alerts/
   checkpoint_dir: data/checkpoints/
   metadata_file:  pipeline/config/files_metadata.yaml
+=======
+  type: duckdb             
+  file: fastfeast         
+  db_name: fastfeast.duckdb  
+  read_only: false         
+
+paths:
+  master_dir: data/master/
+  batch_dir: data/input/batch
+  dest_base: FastFeast/data/bronze/batch
+  stream_dir: data/input/stream/
+  output_dir: data/output/
+  log_file: output/
+  quarantine_file : validation/
+  report_file : output/
+  alert_file : output/
+  check_point_file : utilities/
+  metadata_yaml: pipeline/config/files_metadata.yaml
+
+>>>>>>> origin/dev
 
 pipeline:
   batch_size: 1000
   retry_attempts: 3
+<<<<<<< HEAD
   log_level: INFO
   mode: hybrid
   max_workers: 4
@@ -31,12 +53,23 @@ export:
   enabled: true
   format: parquet
   target_layer: gold
+=======
+  max_workers: 4
+  log_level: INFO
+  mode: hybrid 
+  time_wait: 60
+  sleep_hours: 1
+  max_attempts: 3
+# every time we run pipeline for test we may change between batch or stream run,
+# also can set this Test : to run pipeline at anytime
+>>>>>>> origin/dev
 
 datetime_handling:
   extract_date_key: true
   extract_time_key: true
-  date_key_format: "%Y%m%d"
-  time_key_format: "%H%M%S"
+  date_key_format: "%Y-%m-%d"
+  time_key_format: "%H:%M:%S"
+  date_time: "%Y-%m-%d %H:%M:%S"
   keep_original_timestamp: true
 
 logging:
@@ -59,6 +92,7 @@ alerts:
   shutdown_timeout_sec: 30
 
 stream:
+<<<<<<< HEAD
   poll_interval_sec: 30
   file_pattern: ["*.csv", "*.json"]
 
@@ -66,6 +100,23 @@ batch:
   schedule: daily
   file_pattern: ["*.csv", "*.json"]
   max_files_per_run: 10
+=======
+  poll_interval_sec: 30      # event-based, check every 30 seconds
+  supported_types:
+    csv: "*.csv"
+    json: "*.json"
+
+batch:
+  schedule: "07:00:00" # time-based
+  timeout: 1 
+  supported_types:
+    csv: ".csv"
+    json: ".json"
+  max_files_per_run: 10
+  encoding: "utf-8" 
+# this will be detected through experience with data, or we can calc the time for each batch
+# and take the batch with the best time 
+>>>>>>> origin/dev
 
 threshold:
   max_open: 1

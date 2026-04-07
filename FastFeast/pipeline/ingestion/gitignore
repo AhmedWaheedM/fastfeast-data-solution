@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+*.env
+
+# DuckDB database files
+*.duckdb
+*.duckdb.wal
+
+# Data directories (stream input/output)
+data/
+input/
+output/
+stream/
+
+# Logs
+*.log
+logs/
+
+# Config with secrets (keep config.yaml template, ignore local overrides)
+config.local.yaml
+secrets.yaml
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
