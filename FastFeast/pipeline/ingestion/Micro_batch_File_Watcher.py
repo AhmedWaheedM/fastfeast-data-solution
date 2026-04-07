@@ -3,6 +3,13 @@ import logging
 import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from FastFeast.pipeline.bridge.pyarrow_table import load_file
+from FastFeast.utilities.metadata_cash import compare_columns
+from FastFeast.pipeline.validation.schema_validation import validate_table
+
+from FastFeast.utilities.validation_utils import (expected_types, not_null_column, column_format, get_column_pk,
+                                                  get_column_range, map_format_to_pattern,
+                                                    map_type_to_pyarrow, map_type_to_pattern, compose_table)
 
 from FastFeast.pipeline.config.config import get_config
 from FastFeast.pipeline.ingestion.bronze_writer import write as write_bronze
@@ -51,7 +58,7 @@ except Exception as _e:
 
 # ── File processing ───────────────────────────────────────────────────────────
 
-def process_file(filepath: Path, cycle_id: str):
+def process_file(filepath: Path, cycle_id: str, pipeline_type="stream"):
     file_key = str(filepath.resolve())
 
     if filepath.name not in KNOWN_FILES:
@@ -78,6 +85,28 @@ def process_file(filepath: Path, cycle_id: str):
     # ── Stage 2: PROCESSING — ingestion has started
     update_stage(file_key, "PROCESSING", cycle_id)
     log.info("PROCESSING  ingestion started  path=%s", filepath)
+    ################################################################
+    # We need from here copied file to convert into PyArrow table then pass it to validation
+    ################################################################
+    
+    # pa_table = load_file(target_file)
+
+    # if compare_columns(filepath, pa_table, 'batch'):
+
+    #         expected_types_str = expected_types(filepath, pipeline_type)
+    #         expected_types_pa = map_type_to_pyarrow(expected_types_str)
+    #         not_null = not_null_column(filepath, pipeline_type)
+    #         expected_formats_str = column_format(filepath, pipeline_type)
+    #         expected_formats = map_format_to_pattern(expected_formats_str)
+    #         column_range = get_column_range(filepath, pipeline_type)
+    #         expected_pattern = map_type_to_pattern(expected_types_str)
+    #         expected_pk = get_column_pk(filepath, pipeline_type)
+
+    #         status_list, error_lists= validate_table(pa_table, expected_types_pa, expected_pattern,not_null, expected_formats, column_range,expected_pk, pipeline_type)
+    #         full_table = compose_table(pa_table, status_list, error_lists) #DLQ
+    #         #stream_fk_pk_map[pk_col] = file
+
+    #         return True
 
     return filepath.stem, (filepath, byte_count)
 
@@ -114,6 +143,7 @@ def write_results(date_str: str, batch: dict, cycle_id: str):
 
         # ── Ingestion
         ok = write_bronze(filepath, date_str)
+        
         if not ok:
             log.error("WRITE  FAIL  file=%s", filepath.name)
 
