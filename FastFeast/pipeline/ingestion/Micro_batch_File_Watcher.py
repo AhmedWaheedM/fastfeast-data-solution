@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from FastFeast.pipeline.config import config
+from FastFeast.pipeline.config.config import get_config
 from FastFeast.pipeline.ingestion.bronze_writer import write as write_bronze
 from FastFeast.pipeline.ingestion.file_tracker import (
     try_acquire,
@@ -22,7 +22,7 @@ _PIPELINE   = _HERE.parent
 _ROOT       = _PIPELINE.parent
 CONFIG_PATH = _PIPELINE / "config" / "config.yaml"
 
-cfg = config.load(str(CONFIG_PATH))
+cfg = get_config()
 STREAM_DIR   = Path(cfg.paths.stream_dir).resolve()
 BRONZE_ROOT  = _ROOT / "data"
 
@@ -36,10 +36,14 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("stream_monitor")
+yaml_path = Path(__file__).parent.parent.parent / cfg.paths.metadata_yaml
+
+#print("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", yaml_path)
 
 try:
-    from FastFeast.pipeline.config.meta_data2 import metadata_settings
-    KNOWN_FILES = {f.file_name for f in metadata_settings.stream}
+    from FastFeast.pipeline.config.metadata import load
+    meta = load(yaml_path)
+    KNOWN_FILES = {f.file_name for f in meta.stream}
 except Exception as _e:
     log.warning("Could not load KNOWN_FILES from metadata, using defaults: %s", _e)
     KNOWN_FILES = {"orders.json", "tickets.csv", "ticket_events.json"}
