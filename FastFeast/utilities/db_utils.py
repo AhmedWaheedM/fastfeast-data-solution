@@ -1,6 +1,6 @@
 import duckdb 
-from FastFeast.pipeline.config.config import config_settings
-from FastFeast.dwh.bronze.file_tracking import init_db
+from pipeline.config.config import config_settings
+from dwh.bronze.file_tracking import init_db
 import os
 
 
