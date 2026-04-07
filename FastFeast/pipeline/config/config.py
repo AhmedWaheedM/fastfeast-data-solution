@@ -164,3 +164,8 @@ def load(path: str) -> Settings:
         smtp_password     = os.environ.get("FASTFEAST_SMTP_PASSWORD", ""),
         log_parser    = LogParser(**data["log_parser"]) if "log_parser" in data else LogParser(),
     )
+import os
+from pathlib import Path
+
+DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
+config_settings = load(str(DEFAULT_CONFIG_PATH))
