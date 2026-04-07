@@ -28,17 +28,17 @@ def get_connection():
         #_run_ddl(_connection)
     return init_db(db_path)
 
-# def _run_ddl(conn):
-#     """
-#     Run All DDL files to ensure tables exist 
-#     """
-#     import os 
-#     ddl_dirs = ['FastFeast/dwh/bronze', 'FastFeast/dwh/silver', 'FastFeast/dwh/gold']
-#     for directory in ddl_dirs: 
-#         if not os.path.exists(directory):
-#             continue
-#         for filename in sorted(os.listdir(directory)):
-#             if filename.endswith('.sql'):
-#                 with open(os.path.join(directory, filename), 'r') as f:
-#                     sql = f.read()
-#                     conn.execute(sql)
+def _run_ddl(conn):
+    """
+    Run All DDL files to ensure tables exist 
+    """
+    import os 
+    ddl_dirs = ['FastFeast/dwh/bronze', 'FastFeast/dwh/silver', 'FastFeast/dwh/gold']
+    for directory in ddl_dirs: 
+        if not os.path.exists(directory):
+            continue
+        for filename in sorted(os.listdir(directory)):
+            if filename.endswith('.sql'):
+                with open(os.path.join(directory, filename), 'r') as f:
+                    sql = f.read()
+                    conn.execute(sql)
