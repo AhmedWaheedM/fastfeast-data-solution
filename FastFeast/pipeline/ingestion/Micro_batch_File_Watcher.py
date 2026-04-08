@@ -85,30 +85,117 @@ def process_file(filepath: Path, cycle_id: str, pipeline_type="stream"):
     # ── Stage 2: PROCESSING — ingestion has started
     update_stage(file_key, "PROCESSING", cycle_id)
     log.info("PROCESSING  ingestion started  path=%s", filepath)
-    ################################################################
-    # We need from here copied file to convert into PyArrow table then pass it to validation
-    ################################################################
-    
-    # pa_table = load_file(target_file)
 
-    # if compare_columns(filepath, pa_table, 'batch'):
+    pa_table = load_file(filepath)
 
-    #         expected_types_str = expected_types(filepath, pipeline_type)
-    #         expected_types_pa = map_type_to_pyarrow(expected_types_str)
-    #         not_null = not_null_column(filepath, pipeline_type)
-    #         expected_formats_str = column_format(filepath, pipeline_type)
-    #         expected_formats = map_format_to_pattern(expected_formats_str)
-    #         column_range = get_column_range(filepath, pipeline_type)
-    #         expected_pattern = map_type_to_pattern(expected_types_str)
-    #         expected_pk = get_column_pk(filepath, pipeline_type)
+    if compare_columns(filepath, pa_table, pipeline_type):
 
-    #         status_list, error_lists= validate_table(pa_table, expected_types_pa, expected_pattern,not_null, expected_formats, column_range,expected_pk, pipeline_type)
-    #         full_table = compose_table(pa_table, status_list, error_lists) #DLQ
-    #         #stream_fk_pk_map[pk_col] = file
+        expected_types_str   = expected_types(filepath, pipeline_type)
+        expected_types_pa    = map_type_to_pyarrow(expected_types_str)
+        not_null             = not_null_column(filepath, pipeline_type)
+        expected_formats_str = column_format(filepath, pipeline_type)
+        expected_formats     = map_format_to_pattern(expected_formats_str)
+        column_range_        = get_column_range(filepath, pipeline_type)
+        expected_pattern     = map_type_to_pattern(expected_types_str)
+        expected_pk          = get_column_pk(filepath, pipeline_type)
 
-    #         return True
+        status_list, error_lists = validate_table(
+            pa_table,
+            expected_types_pa,
+            expected_pattern,
+            not_null,
+            expected_formats,
+            column_range_,
+            expected_pk,
+            pipeline_type,
+        )
+        full_table = compose_table(pa_table, status_list, error_lists)  # DLQ
+
+        return True
 
     return filepath.stem, (filepath, byte_count)
+
+def process_file(filepath: Path, cycle_id: str, pipeline_type="stream"):
+    file_key = str(filepath.resolve())
+
+    if filepath.name not in KNOWN_FILES:
+        log.warning("SKIP  unknown file  path=%s", filepath)
+        return filepath.stem, None
+
+    if filepath.stat().st_size == 0:
+        log.warning("SKIP  empty file  path=%s", filepath)
+        return filepath.stem, None
+
+    current_hash = hash_file(filepath)
+
+    update_stage(file_key, "PENDING", cycle_id)
+    log.info("PENDING  file detected  path=%s", filepath)
+
+    acquired = try_acquire(file_key, cycle_id, current_hash, MAX_ATTEMPTS)
+    if not acquired:
+        return filepath.stem, None
+
+    byte_count = filepath.stat().st_size
+    log.info("READ  ok  path=%s  size=%d bytes", filepath, byte_count)
+
+    update_stage(file_key, "PROCESSING", cycle_id)
+    log.info("PROCESSING  ingestion started  path=%s", filepath)
+
+    # ── Step 1: Load the file into a PyArrow table
+    pa_table = load_file(filepath)
+    if pa_table is None:
+        log.error("LOAD  unsupported file type  path=%s", filepath)
+        update_stage(file_key, "FAILED", cycle_id)
+        return filepath.stem, None
+
+    # ── Step 2: Check columns match the metadata schema
+    if not compare_columns(filepath, pa_table, pipeline_type):
+        log.error("SCHEMA  column mismatch  path=%s", filepath)
+        update_stage(file_key, "FAILED", cycle_id)
+        return filepath.stem, None
+
+    # ── Step 3: Build all validation inputs from metadata
+    expected_types_str = expected_types(filepath, pipeline_type)
+    expected_types_pa  = map_type_to_pyarrow(expected_types_str)
+    expected_pattern   = map_type_to_pattern(expected_types_str)
+
+    not_null           = not_null_column(filepath, pipeline_type)
+    expected_formats_str = column_format(filepath, pipeline_type)
+    expected_formats   = map_format_to_pattern(expected_formats_str)
+    column_range_      = get_column_range(filepath, pipeline_type)
+    expected_pk        = get_column_pk(filepath, pipeline_type)
+
+    # ── Step 4: Validate and compose the final table (with DLQ columns)
+    status_list, error_lists = validate_table(
+        pa_table,
+        expected_types_pa,
+        expected_pattern,
+        not_null,
+        expected_formats,
+        column_range_,
+        expected_pk,
+        pipeline_type,
+    )
+    full_table = compose_table(pa_table, status_list, error_lists)
+
+    log.info(
+        "VALIDATED  path=%s  rows=%d  valid=%d",
+        filepath,
+        len(status_list),
+        status_list.count("valid"),  # adjust to your actual status value
+    )
+
+    # full_table is now ready for write_bronze or further FK/PK checks
+    return filepath.stem, (filepath, byte_count)
+
+
+
+
+
+
+
+
+
 
 
 def process_date_folder(date_folder: Path, cycle_id: str) -> dict:
