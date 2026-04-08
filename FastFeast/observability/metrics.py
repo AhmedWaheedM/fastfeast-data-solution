@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from utilities.helper_utils import now_iso, short_id
-
+from FastFeast.utilities.helper_utils import now_iso, short_id
 try:
-    from pipeline.observability import logger as pipeline_log
+    from FastFeast.observability import logger as pipeline_log
     LOG_AVAILABLE = True
 except ImportError:
     LOG_AVAILABLE = False

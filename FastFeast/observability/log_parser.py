@@ -5,8 +5,7 @@ import glob
 import os
 from datetime import datetime
 from pathlib import Path
-from pipeline.config import config as cfg_loader
-from pathlib import Path
+from FastFeast.pipeline.config import config as cfg_loader
 import pyarrow as pa
 import pyarrow.compute as pc
 
@@ -156,8 +155,7 @@ def parse_log_file(path, tail=None):
 
 
 def parse_multiple_log_files(paths, tail_per_file=None):
-    from pipeline.config import config as cfg_loader
-    from pathlib import Path
+    from FastFeast.pipeline.config import config as cfg_loader
     if tail_per_file is None:
         try:
             cfg           = cfg_loader.load(str(Path(__file__).resolve().parents[2] / "config" / "config.yaml"))

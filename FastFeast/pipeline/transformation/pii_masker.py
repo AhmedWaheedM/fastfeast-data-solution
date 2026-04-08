@@ -2,8 +2,7 @@ from logging import info
 
 import pyarrow as pa
 import pyarrow.compute as pc
-from support.logger import pipeline as log  
-
+from FastFeast.support.logger import pipeline as log  
 def mask_pii(table: pa.Table, table_name: str, pii_config: dict) -> pa.Table:
     """
     Applies vectorized PII masking to a PyArrow table.

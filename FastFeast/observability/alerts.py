@@ -9,8 +9,7 @@ import urllib.request
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from utilities.helper_utils import now_iso
-
+from FastFeast.utilities.helper_utils import now_iso
 logger = logging.getLogger(__name__)
 
 alert_queue = queue.Queue()
