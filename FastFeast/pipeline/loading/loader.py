@@ -3,9 +3,9 @@ import time
 import threading
 from dataclasses import dataclass
 
-from utilities.db_utils import get_connection
-from utilities.file_utils import resolve_silver_name
-from support.logger import pipeline as log
+from FastFeast.utilities.db_utils import get_connection
+from FastFeast.utilities.file_utils import resolve_silver_name
+from FastFeast.support.logger import pipeline as log
 
 # #TODO Temporary Metrics Placeholder (Refactor after Merge)
 @dataclass
