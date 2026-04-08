@@ -9,7 +9,7 @@ import pyarrow.csv as pa_csv
 import pyarrow.json as pa_json
 
 try:
-    from pipeline.observability import logger as pipeline_log
+    from FastFeast.observability import logger as pipeline_log
     LOG_AVAILABLE = True
 except ImportError:
     LOG_AVAILABLE = False

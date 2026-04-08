@@ -49,7 +49,7 @@ def get_column_types(file_name, source):
     for file_meta in source:
         if file_meta.file_name == file_name:
             for column in file_meta.columns:
-                if column.type == "string":
+                if column.type in {"string", "varchar"}:
                     string_columns.append(column.name)
                 elif column.type == "float":
                     float_columns.append(column.name)
@@ -58,18 +58,12 @@ def get_column_types(file_name, source):
 
 #############################################################
 
-def get_column_types(file_name, source):
-    string_columns = []
-    float_columns = []
-
-    for file_meta in source:
-        if file_meta.file_name == file_name:
-            for column in file_meta.columns:
-                if column.type == "string":
-                    string_columns.append(column.name)
-                elif column.type == "float":
-                    float_columns.append(column.name)
-
+def resolve_column_types(file_name):
+    string_columns, float_columns = get_column_types(file_name, batch)
+    if not string_columns and not float_columns:
+        stream_strings, stream_floats = get_column_types(file_name, stream)
+        string_columns = stream_strings
+        float_columns = stream_floats
     return string_columns, float_columns
 
 #############################################################
@@ -83,9 +77,8 @@ def json_value(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)  # Accecpt Json aray
 
-    # Main columns cause all problems
-    string_columns = ["restaurant_name"]
-    float_columns = ["rating_avg"]
+    file_name = Path(file_path).name
+    string_columns, float_columns = resolve_column_types(file_name)
 
     cleaned_data = []
 

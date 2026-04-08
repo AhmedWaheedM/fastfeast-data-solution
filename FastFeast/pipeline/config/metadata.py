@@ -26,6 +26,13 @@ class Column:
 class FileMeta:
     file_name: str
     columns: List[Column]
+    target_dimension: Optional[str] = None
+    target_fact: Optional[str] = None
+    write_priority: Optional[int] = None
+
+    @property
+    def primary_keys(self) -> List[str]:
+        return [column.name for column in self.columns if column.pk]
 
 @dataclass
 class Settings:
