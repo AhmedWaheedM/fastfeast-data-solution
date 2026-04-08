@@ -1,6 +1,10 @@
 from typing import Dict, List, Optional, Any
-from FastFeast.pipeline.config.metadata import Settings
-from FastFeast.pipeline.config.metadata import FileMeta
+from pipeline.config.metadata import Settings
+from pipeline.config.metadata import FileMeta
+import hashlib
+import time
+from pipeline.config.config import config_settings
+from pathlib import Path
 #from pipeline.logger import logging
 
 
@@ -59,10 +63,6 @@ def get_config_source(file_path: str, settings: Settings) -> Optional[str]:
 
     return None
 
-import hashlib
-import time
-from FastFeast.pipeline.config.config import config_settings
-from pathlib import Path
 
 def get_file_hash(file_path):
     sha = hashlib.sha256()
@@ -79,3 +79,8 @@ def wait_for_file(file_path, timeout_sec=config_settings.pipeline.time_wait):
             return False
         time.sleep(1)
     return True
+
+def resolve_silver_name(file_name: str) -> str:
+    """Standardizes raw filenames into DuckDB SILVER_TABLE formats."""
+    clean_name = file_name.upper().replace('.CSV', '').replace('.JSON', '')
+    return f"SILVER_{clean_name}"
