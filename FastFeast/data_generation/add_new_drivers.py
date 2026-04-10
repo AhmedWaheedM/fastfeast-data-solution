@@ -5,7 +5,7 @@ import argparse
 import pandas as pd
 from datetime import datetime
 
-MASTER_DIR = "FastFeast/data/master"
+MASTER_DIR = "../../data/master"
 
 FIRST_NAMES_MALE = [
     "Ahmed", "Mohamed", "Omar", "Youssef", "Ali", "Hassan", "Hussein", "Mahmoud",

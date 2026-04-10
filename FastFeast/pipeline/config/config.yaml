@@ -1,39 +1,41 @@
 database:
   type: duckdb             
-  name: fastfeast         
-  file: fastfeast.duckdb  
+  file: fastfeast         
+  db_name: fastfeast.duckdb  
   read_only: false         
 
 paths:
-  master_dir: ../data/master/
-  batch_dir: ../data/input/batch/
-  stream_dir: ../data/input/stream/
-  output_dir: ../data/output/
-  log_file: ../output/
-  quarantine_file : ../validation/
-  report_file : ../output/
-  alert_file : ../output/
-  check_point_file : ../utilities/
+  master_dir: data/master/
+  batch_dir: data/input/batch
+  dest_base: FastFeast/data/bronze/batch
+  stream_dir: data/input/stream/
+  output_dir: data/output/
+  log_file: output/
+  quarantine_file : validation/
+  report_file : output/
+  alert_file : output/
+  check_point_file : utilities/
+  metadata_yaml: pipeline/config/files_metadata.yaml
+
 
 pipeline:
   batch_size: 1000
   retry_attempts: 3
-  #max_threads: 4
+  max_workers: 4
   log_level: INFO
-  mode : hybrid
+  mode: hybrid 
+  time_wait: 60
+  sleep_hours: 1
+  max_attempts: 3
 # every time we run pipeline for test we may change between batch or stream run,
-# change it here
-
-export:
-  enabled: true
-  format: parquet
-  target_layer: gold
+# also can set this Test : to run pipeline at anytime
 
 datetime_handling:
   extract_date_key: true
   extract_time_key: true
-  date_key_format: "%Y%m%d"
-  time_key_format: "%H%M%S"
+  date_key_format: "%Y-%m-%d"
+  time_key_format: "%H:%M:%S"
+  date_time: "%Y-%m-%d %H:%M:%S"
   keep_original_timestamp: true
 
 logging:
@@ -47,12 +49,18 @@ alerts:
 
 stream:
   poll_interval_sec: 30      # event-based, check every 30 seconds
-  file_pattern: ["*.csv", "*.json"] 
+  supported_types:
+    csv: "*.csv"
+    json: "*.json"
 
 batch:
-  schedule: daily # time-based
-  file_pattern: ["*.csv", "*.json"] 
-  max_files_per_run: 10   
+  schedule: "07:00:00" # time-based
+  timeout: 1 
+  supported_types:
+    csv: ".csv"
+    json: ".json"
+  max_files_per_run: 10
+  encoding: "utf-8" 
 # this will be detected through experience with data, or we can calc the time for each batch
 # and take the batch with the best time 
 

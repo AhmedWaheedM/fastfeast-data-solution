@@ -2,6 +2,9 @@
 data/
 data_input/
 data_archive/
+documentation/
+input_data/
+#test/
 
 # Databases
 *.duckdb
