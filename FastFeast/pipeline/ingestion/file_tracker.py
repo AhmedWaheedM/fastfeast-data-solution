@@ -74,7 +74,13 @@ def mark_processing(file_path: str, file_hash: str, record_count: int, run_id: s
         """
         INSERT INTO FILE_TRACKING 
         (FILE_PATH, PROCESSED_AT, STATUS, CURRENT_STAGE, LAST_HASH, RECORD_COUNT, PIPELINE_RUN_ID)
-        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?);
+        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?)
+        ON CONFLICT (FILE_PATH, PIPELINE_RUN_ID) DO UPDATE SET
+            PROCESSED_AT  = excluded.PROCESSED_AT,
+            STATUS        = 'PROCESSING',
+            CURRENT_STAGE = 'PENDING',
+            LAST_HASH     = excluded.LAST_HASH,
+            RECORD_COUNT  = excluded.RECORD_COUNT;
         """,
         [file_path, datetime.now(), file_hash, record_count, run_id]
     )
@@ -91,11 +97,11 @@ def mark_processed(file_path: str, status: str, record_count: int, run_id: str) 
         UPDATE FILE_TRACKING
         SET STATUS          = ?,
             PROCESSED_AT    = ?,
-            RECORD_COUNT    = ?,
-            PIPELINE_RUN_ID = ?
+            RECORD_COUNT    = ?
         WHERE FILE_PATH = ?
+          AND PIPELINE_RUN_ID = ?
         """,
-        [status, now, record_count, run_id, str(file_path)],
+        [status, now, record_count, str(file_path), run_id],
     )
     #conn.commit()
     conn.close()
@@ -108,10 +114,11 @@ def update_stage(file_path: str, stage: str, run_id: str) -> None:
     conn.execute(
         """
         UPDATE FILE_TRACKING
-        SET CURRENT_STAGE = ?, PROCESSED_AT = ?, PIPELINE_RUN_ID = ?
-        WHERE FILE_PATH = ?
+                SET CURRENT_STAGE = ?, PROCESSED_AT = ?
+                WHERE FILE_PATH = ?
+                    AND PIPELINE_RUN_ID = ?
         """,
-        [stage, now, run_id, str(file_path)],
+                [stage, now, str(file_path), run_id],
     )
     #conn.commit()
     conn.close()
