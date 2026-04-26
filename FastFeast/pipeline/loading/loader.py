@@ -7,6 +7,8 @@ from FastFeast.utilities.db_utils import get_connection
 from FastFeast.utilities.file_utils import resolve_silver_name
 from FastFeast.support.logger import pipeline as log
 
+INTEGER_TYPES = {"integer", "int", "int64", "bigint", "long"}
+
 # #TODO Temporary Metrics Placeholder (Refactor after Merge)
 @dataclass
 class LoadResult:
@@ -48,16 +50,25 @@ def load_to_silver(file_name: str, pa_table: pa.Table, meta, is_batch: bool) -> 
     
     try:
         conn.register("temp_pa_view", pa_table)
+
+        meta_column_types = {
+            c.name.lower(): str(c.type).lower()
+            for c in getattr(meta, "columns", [])
+        } if meta else {}
         
         # Build PII Hashing Select (MD5 native in DuckDB, so much faster than doing it in PyArrow)
         select_cols = []
         for col_name in pa_table.column_names:
+            source_expr = f"temp_pa_view.{col_name}"
+            if meta_column_types.get(col_name.lower()) in INTEGER_TYPES:
+                source_expr = f"TRY_CAST({source_expr} AS BIGINT)"
+
             is_pii = any(c.name.lower() == col_name.lower() and getattr(c, 'pii', False) 
                          for c in getattr(meta, 'columns', [])) if meta else False
             if is_pii:
-                select_cols.append(f"MD5(CAST(temp_pa_view.{col_name} AS VARCHAR)) AS {col_name}")
+                select_cols.append(f"MD5(CAST({source_expr} AS VARCHAR)) AS {col_name}")
             else:
-                select_cols.append(f"temp_pa_view.{col_name}")
+                select_cols.append(f"{source_expr} AS {col_name}")
         
         select_clause = ", ".join(select_cols)
         pk_cols = meta.primary_keys if meta else []

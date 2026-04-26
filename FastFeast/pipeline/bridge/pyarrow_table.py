@@ -45,6 +45,7 @@ def clean_value(value, target_type):
 def get_column_types(file_name, source):
     string_columns = []
     float_columns = []
+    integer_columns = []
 
     for file_meta in source:
         if file_meta.file_name == file_name:
@@ -53,18 +54,21 @@ def get_column_types(file_name, source):
                     string_columns.append(column.name)
                 elif column.type == "float":
                     float_columns.append(column.name)
+                elif column.type in {"integer", "int", "int64", "bigint", "long"}:
+                    integer_columns.append(column.name)
 
-    return string_columns, float_columns
+    return string_columns, float_columns, integer_columns
 
 #############################################################
 
 def resolve_column_types(file_name):
-    string_columns, float_columns = get_column_types(file_name, batch)
-    if not string_columns and not float_columns:
-        stream_strings, stream_floats = get_column_types(file_name, stream)
+    string_columns, float_columns, integer_columns = get_column_types(file_name, batch)
+    if not string_columns and not float_columns and not integer_columns:
+        stream_strings, stream_floats, stream_ints = get_column_types(file_name, stream)
         string_columns = stream_strings
         float_columns = stream_floats
-    return string_columns, float_columns
+        integer_columns = stream_ints
+    return string_columns, float_columns, integer_columns
 
 #############################################################
 
@@ -78,7 +82,7 @@ def json_value(file_path):
         data = json.load(f)  # Accecpt Json aray
 
     file_name = Path(file_path).name
-    string_columns, float_columns = resolve_column_types(file_name)
+    string_columns, float_columns, integer_columns = resolve_column_types(file_name)
 
     cleaned_data = []
 
@@ -92,6 +96,9 @@ def json_value(file_path):
 
             elif key in float_columns:
                 cleaned_row[key] = clean_value(value, "float")
+
+            elif key in integer_columns:
+                cleaned_row[key] = clean_value(value, "integer")
 
             else:
                 cleaned_row[key] = value
