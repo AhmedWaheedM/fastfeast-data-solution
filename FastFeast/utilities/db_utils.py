@@ -1,5 +1,6 @@
 from pathlib import Path
 import threading
+import time
 from FastFeast.dwh.bronze.file_tracking import init_db
 from FastFeast.pipeline.config.config import load
 
@@ -32,9 +33,28 @@ def get_db_path() -> Path:
 def get_connection():
     output_dir = get_output_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
-    conn = init_db(str(get_db_path()))
-    _ensure_ddl(conn)
-    return conn
+    retries = 8
+    delay_seconds = 0.1
+    last_error = None
+
+    for attempt in range(retries):
+        try:
+            conn = init_db(str(get_db_path()))
+            _ensure_ddl(conn)
+            return conn
+        except Exception as exc:
+            last_error = exc
+            message = str(exc).lower()
+            transient_lock = (
+                "being used by another process" in message
+                or "file is already open" in message
+                or "cannot open file" in message
+            )
+            if not transient_lock or attempt == retries - 1:
+                raise
+            time.sleep(delay_seconds * (attempt + 1))
+
+    raise last_error
 
 def _run_ddl(conn):
     """
