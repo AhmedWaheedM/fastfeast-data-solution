@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import pyarrow as pa
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -23,6 +24,7 @@ from FastFeast.pipeline.ingestion.file_tracker import (
     update_stage,
 )
 from FastFeast.pipeline.ingestion.listen_to_folder import copy_files
+from FastFeast.pipeline.loading.loader import load_to_gold, load_to_silver
 from FastFeast.pipeline.validation.schema_validation import validate_table
 from FastFeast.support.logger import pipeline as log
 from FastFeast.utilities.file_utils import get_file_hash
@@ -55,11 +57,20 @@ METADATA_PATH = Path(__file__).resolve().parents[1] / "pipeline" / "config" / "f
 try:
     _meta = load_metadata(METADATA_PATH)
     SUPPORTED_DIMENSION_FILES = {f.file_name for f in _meta.batch}
+    DIM_META_BY_FILE = {f.file_name: f for f in _meta.batch}
 except Exception as exc:
     log.warning("Could not load dimension metadata; processing all files: %s", exc)
     SUPPORTED_DIMENSION_FILES = set()
+    DIM_META_BY_FILE = {}
 
 tracker_db_lock = threading.Lock()
+
+
+def _filter_valid_rows(table: pa.Table, status_list: list[str]) -> pa.Table:
+    valid_indices = [i for i, status in enumerate(status_list) if str(status).upper() == "VALID"]
+    if not valid_indices:
+        return table.slice(0, 0)
+    return table.take(pa.array(valid_indices, type=pa.int64()))
 
 ####################################################
 
@@ -111,11 +122,49 @@ def process_single_file(file_path: Path, dest_folder: Path, run_id: str, pipelin
             status_list, error_lists, pk_col= validate_table(pa_table, expected_types_pa, expected_pattern,not_null, expected_formats, column_range,expected_pk, pipeline_type)
             compose_table(pa_table, status_list, error_lists)
 
+            valid_table = _filter_valid_rows(pa_table, status_list)
+            file_meta = DIM_META_BY_FILE.get(file_path.name)
+
+            silver_result = load_to_silver(file_path.name, valid_table, file_meta, is_batch=True)
+            if not silver_result.success:
+                with tracker_db_lock:
+                    update_stage(str(target_file.resolve()), "FAILED_SILVER_LOAD", run_id)
+                log.error(
+                    "Silver load failed",
+                    file=file_path.name,
+                    error=silver_result.error,
+                    run_id=run_id,
+                )
+                return False
+
+            gold_result = load_to_gold(file_path.name, file_meta)
+            if not gold_result.success:
+                with tracker_db_lock:
+                    update_stage(str(target_file.resolve()), "LOADED_SILVER_ONLY", run_id)
+                log.warning(
+                    "Gold load skipped; Silver load already succeeded",
+                    file=file_path.name,
+                    error=gold_result.error,
+                    run_id=run_id,
+                )
+                gold_inserted = 0
+            else:
+                with tracker_db_lock:
+                    update_stage(str(target_file.resolve()), "LOADED_GOLD", run_id)
+                gold_inserted = gold_result.inserted
+
             with tracker_db_lock:
                 mark_processed(str(target_file.resolve()), "PROCESSED", row_count, run_id)
-                update_stage(str(target_file.resolve()), "VALIDATED", run_id)
 
-            log.info("File validated", file=file_path.name, run_id=run_id)
+            log.info(
+                "File validated and loaded",
+                file=file_path.name,
+                run_id=run_id,
+                valid_rows=valid_table.num_rows,
+                attempted_rows=row_count,
+                silver_inserted=silver_result.inserted,
+                gold_inserted=gold_inserted,
+            )
 
             return True
 
