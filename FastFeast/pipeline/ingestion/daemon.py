@@ -1,11 +1,12 @@
 import time
-import logging
 from datetime import date, datetime
 
 from FastFeast.pipeline.ingestion.file_tracker import generate_run_id
 from FastFeast.pipeline.ingestion.Micro_batch_File_Watcher import run_cycle, SLEEP_HOURS, STREAM_DIR, DB_PATH
+from FastFeast.observability.logger import setup_logger, get_logger
 
-log = logging.getLogger("daemon")
+setup_logger(name="daemon", log_dir="logs", level="INFO")
+log = get_logger("daemon")
 
 
 def run(explicit_date: str | None = None):

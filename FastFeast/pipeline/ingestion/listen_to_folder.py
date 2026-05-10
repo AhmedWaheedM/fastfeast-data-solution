@@ -1,22 +1,14 @@
 import shutil
-import time
 from pathlib import Path
 from FastFeast.support.logger import pipeline as log
+from FastFeast.utilities.file_utils import wait_for_file as shared_wait_for_file
 
 ####################################################
 
 # Wait for file
 def wait_for_file(file_path, timeout_sec=60):
-    path = Path(file_path)
-    start = time.time()
-
-    while not path.exists():
-        #log("File not exist, retry in 30 seconds...")
-        if time.time() - start > timeout_sec:
-            return False
-        time.sleep(1)
-
-    return True
+    # Keep local API stable while reusing shared implementation.
+    return shared_wait_for_file(file_path, timeout_sec=timeout_sec)
 ####################################################
 
 # Copy files from source to distnation

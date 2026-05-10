@@ -119,13 +119,19 @@ def map_type_to_pyarrow(expected_types):
 #     return {col: _map_type_to_pyarrow(type_str) for col, type_str in expected_types.items()}
 
 def map_type_to_pattern(expected_types):
-    return {t: _map_type_to_pattern(t) for t in expected_types}
+    return {
+        col: _map_type_to_pattern(type_str)
+        for col, type_str in expected_types.items()
+    }
 
 # def map_type_to_pattern(expected_types):
 #     return {col: _map_type_to_pattern(type_str) for col, type_str in expected_types.items()}
 
 def map_format_to_pattern(expected_formats):
-    return {f: _map_format_to_pattern(f) for f in expected_formats}
+    return {
+        col: _map_format_to_pattern(format_name)
+        for col, format_name in expected_formats.items()
+    }
 
 ############################################
 def compose_table(pa_table, record_status, error_lists):

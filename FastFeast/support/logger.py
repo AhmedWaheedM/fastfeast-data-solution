@@ -1,14 +1,14 @@
 import os
-import logging
-import logging.handlers
 import structlog
 
-LOG_DIR      = os.getenv("FF_LOG_DIR",          "logs")
-MAX_BYTES    = int(os.getenv("FF_LOG_MAX_BYTES", str(5 * 1024 * 1024)))
-BACKUP_COUNT = int(os.getenv("FF_LOG_BACKUPS",   "7"))
+from FastFeast.observability.logger import setup_logger
+
+LOG_DIR = os.getenv("FF_LOG_DIR", "logs")
+MAX_BYTES = int(os.getenv("FF_LOG_MAX_BYTES", str(5 * 1024 * 1024)))
+BACKUP_COUNT = int(os.getenv("FF_LOG_BACKUPS", "7"))
+LOG_LEVEL = os.getenv("FF_LOG_LEVEL", "INFO")
 
 
-# ── configure structlog processors ───────────────────────
 structlog.configure(
     processors=[
         structlog.stdlib.add_log_level,
@@ -22,36 +22,16 @@ structlog.configure(
 )
 
 
-def _setup(name: str, filename: str):
-    os.makedirs(LOG_DIR, exist_ok=True)
-
-    stdlib = logging.getLogger(name)
-    if stdlib.handlers:          # if already configured
-        return structlog.get_logger(name)
-
-    stdlib.setLevel(logging.DEBUG)
-    stdlib.propagate = False
-
-    fmt = logging.Formatter("%(message)s")
-
-    # rotating file
-    fh = logging.handlers.RotatingFileHandler(
-        os.path.join(LOG_DIR, filename),
-        maxBytes=MAX_BYTES,
-        backupCount=BACKUP_COUNT,
-        encoding="utf-8",
+def _setup(name: str):
+    setup_logger(
+        name=name,
+        log_dir=LOG_DIR,
+        level=LOG_LEVEL,
+        max_bytes=MAX_BYTES,
+        backup_count=BACKUP_COUNT,
     )
-    fh.setFormatter(fmt)
-    stdlib.addHandler(fh)
-
-    # console
-    ch = logging.StreamHandler()
-    ch.setFormatter(fmt)
-    stdlib.addHandler(ch)
-
     return structlog.get_logger(name)
 
 
-# ── two loggers ─────────────────────────────────────
-pipeline   = _setup("pipeline",   "pipeline.log")
-validation = _setup("validation", "validation.log")
+pipeline = _setup("pipeline")
+validation = _setup("validation")

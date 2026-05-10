@@ -27,7 +27,9 @@ def validate_table(pa_table, expected_types, expected_patterns, expected_not_nul
   error_lists = [{} for _ in range(n)]
   invalid_data_type_mask = invalid_null_mask = invalid_format_mask = invalid_range_mask = pa.array([False] * n)
 
-  for col_name in pa_table.schema.names:
+  for col_name in expected_types:
+    if col_name not in pa_table.schema.names:
+      continue
     try:
       col = pc.cast(pa_table[col_name], expected_types[col_name])
       if col_name in expected_not_nullable:
@@ -54,8 +56,9 @@ def validate_table(pa_table, expected_types, expected_patterns, expected_not_nul
           error_lists[idx]['duplicated'].append(col_name)
 
     except Exception as e:
-      null_mask = pc.equal(pc.cast(pa_table[col_name], pa.string()).fill_null(''), pa.scalar(''))
-      col = pc.if_else(pc.invert(null_mask), pa_table[col_name], pa.scalar(None, type=pa.string()))
+      source_as_str = pc.cast(pa_table[col_name], pa.string())
+      null_mask = pc.equal(source_as_str.fill_null(''), pa.scalar(''))
+      col = pc.if_else(pc.invert(null_mask), source_as_str, pa.scalar(None, type=pa.string()))
       invalid_data_type_mask = pc.invert(pc.match_substring_regex(col, pattern= expected_patterns[col_name]))
       _propagate_errors(invalid_data_type_mask, error_lists, col_name, 'data_type')
 

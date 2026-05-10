@@ -15,22 +15,20 @@ ROOT      = FASTFEAST.parent
 if str(FASTFEAST) not in sys.path:
     sys.path.insert(0, str(FASTFEAST))
 
-from pipeline.config import config as cfg_loader
-from pipeline.bronze.bronze_reader import read_all_sources
-from pipeline.bronze.schema_validator import load_schema, validate_table
-
-from pipeline.observability.metrics import (
+from FastFeast.pipeline.config import config as cfg_loader
+from FastFeast.pipeline.bronze.bronze_reader import read_all_sources
+from FastFeast.pipeline.bronze.schema_validator import load_schema, validate_table
+from FastFeast.observability.metrics import (
     make_store,
     record_file,
     snapshot,
     log_metrics,
     write_report
 )
-from pipeline.observability.alerts import shutdown, send_failure_alert, send_success_alert
-from pipeline.observability.logger import setup_logger
-
+from FastFeast.observability.alerts import shutdown, send_failure_alert, send_success_alert
+from FastFeast.observability.logger import setup_logger
 try:
-    from pipeline.observability import logger as pipeline_log
+    from FastFeast.observability import logger as pipeline_log
     LOG_AVAILABLE = True
 except ImportError:
     LOG_AVAILABLE = False

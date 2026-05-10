@@ -2,12 +2,9 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from datetime import datetime
-from pathlib import Path
-from support.logger import pipeline as log
-from pipeline.config.config import config_settings
-
-#FIXME constant should be moved to config 
-MAX_ORPHAN_RETRIES = 3 
+from FastFeast.support.logger import pipeline as log
+from FastFeast.pipeline.config.config import config_settings
+from FastFeast.utilities.db_utils import get_output_dir
 
 def route_records(table: pa.Table, table_name: str, run_id: str) -> pa.Table:
     """ 
@@ -30,8 +27,9 @@ def route_records(table: pa.Table, table_name: str, run_id: str) -> pa.Table:
     bad_table = table.filter(pc.equal(table['_record_status'], 'INVALID'))
     orphan_table = table.filter(pc.equal(table['_record_status'], 'ORPHAN'))
     expired_orphans = pa.table({})
+    max_orphan_retries = config_settings.pipeline.retry_attempts
     if orphan_table.num_rows > 0:
-        expired_mask = pc.greater_equal(orphan_table['_retry_count'], MAX_ORPHAN_RETRIES)
+        expired_mask = pc.greater_equal(orphan_table['_retry_count'], max_orphan_retries)
         expired_orphans = orphan_table.filter(expired_mask)
         active_orphans = orphan_table.filter(pc.invert(expired_mask))
 
@@ -71,7 +69,7 @@ def _write_to_storage(table: pa.Table, table_name: str, run_id: str, folder_type
     """
     Writes a PyArrow table to the appropriate location in storage based on the folder type (quarantine or orphans).
     """
-    base_dir = Path(config_settings.paths.output_dir).resolve() / "validation" / folder_type
+    base_dir = get_output_dir() / "validation" / folder_type
     today_str = datetime.now().strftime(config_settings.datetime_handling.date_key_format)
 
     # Path should be something along the lines of:  /validation/{quarantine_or_orphans}/{table_name}/{YYYY-MM-DD}/{run_id}.parquet 

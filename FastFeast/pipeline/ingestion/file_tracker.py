@@ -17,44 +17,49 @@ def hash_file(path: Path) -> str:
 
 def try_acquire(file_key: str, cycle_id: str, current_hash: str, max_attempts: int) -> bool:
     conn = get_connection()
-    row  = conn.execute(
-        "SELECT ATTEMPT_COUNT, LAST_HASH, STATUS FROM FILE_TRACKING WHERE FILE_PATH = ?",
-        [file_key]
-    ).fetchone()
+    try:
+        row = conn.execute(
+            "SELECT ATTEMPT_COUNT, LAST_HASH, STATUS FROM FILE_TRACKING WHERE FILE_PATH = ?",
+            [file_key],
+        ).fetchone()
 
-    if row:
-        attempts, stored_hash, status = row
-        if attempts >= max_attempts:
-            log.warning("SKIP  max attempts reached (%d)  path=%s", max_attempts, file_key)
-            return False
-        if stored_hash == current_hash and status == "SUCCESS":
-            log.debug("SKIP  unchanged successful file  path=%s", file_key)
-            return False
+        if row:
+            attempts, stored_hash, status = row
+            if attempts >= max_attempts:
+                log.warning("SKIP  max attempts reached (%d)  path=%s", max_attempts, file_key)
+                return False
+            if stored_hash == current_hash and status == "SUCCESS":
+                log.debug("SKIP  unchanged successful file  path=%s", file_key)
+                return False
 
-    acquire_file(file_key, current_hash, cycle_id, conn)
-    conn.close()
-    return True
+        acquire_file(file_key, current_hash, cycle_id, conn)
+        return True
+    finally:
+        conn.close()
 
 
 def acquire_file(file_path: str, new_hash: str, run_id: str, conn=None) -> None:
     now  = datetime.now()
+    owns_connection = conn is None
     conn = conn or get_connection()
-    conn.execute(
-        """
-        INSERT INTO FILE_TRACKING (FILE_PATH, PIPELINE_RUN_ID, PROCESSED_AT, STATUS,
-                                   CURRENT_STAGE, RECORD_COUNT, LAST_HASH, ATTEMPT_COUNT)
-        VALUES (?, ?, ?, 'PROCESSING', 'PENDING', 0, ?, 1)
-        ON CONFLICT (FILE_PATH, PIPELINE_RUN_ID) DO UPDATE SET
-            LAST_HASH       = excluded.LAST_HASH,
-            STATUS          = 'PROCESSING',
-            PROCESSED_AT    = excluded.PROCESSED_AT,
-            PIPELINE_RUN_ID = excluded.PIPELINE_RUN_ID,
-            ATTEMPT_COUNT   = FILE_TRACKING.ATTEMPT_COUNT + 1
-        """,
-        [file_path, run_id, now, new_hash],
-    )
-    #conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            """
+            INSERT INTO FILE_TRACKING (FILE_PATH, PIPELINE_RUN_ID, PROCESSED_AT, STATUS,
+                                       CURRENT_STAGE, RECORD_COUNT, LAST_HASH, ATTEMPT_COUNT)
+            VALUES (?, ?, ?, 'PROCESSING', 'PENDING', 0, ?, 1)
+            ON CONFLICT (FILE_PATH, PIPELINE_RUN_ID) DO UPDATE SET
+                LAST_HASH       = excluded.LAST_HASH,
+                STATUS          = 'PROCESSING',
+                PROCESSED_AT    = excluded.PROCESSED_AT,
+                PIPELINE_RUN_ID = excluded.PIPELINE_RUN_ID,
+                ATTEMPT_COUNT   = FILE_TRACKING.ATTEMPT_COUNT + 1
+            """,
+            [file_path, run_id, now, new_hash],
+        )
+    finally:
+        if owns_connection:
+            conn.close()
     log.info("ACQUIRED  path=%s  run_id=%s", str(file_path), run_id)
 
 
@@ -74,7 +79,13 @@ def mark_processing(file_path: str, file_hash: str, record_count: int, run_id: s
         """
         INSERT INTO FILE_TRACKING 
         (FILE_PATH, PROCESSED_AT, STATUS, CURRENT_STAGE, LAST_HASH, RECORD_COUNT, PIPELINE_RUN_ID)
-        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?);
+        VALUES (?, ?, 'PROCESSING', 'PENDING', ?, ?, ?)
+        ON CONFLICT (FILE_PATH, PIPELINE_RUN_ID) DO UPDATE SET
+            PROCESSED_AT  = excluded.PROCESSED_AT,
+            STATUS        = 'PROCESSING',
+            CURRENT_STAGE = 'PENDING',
+            LAST_HASH     = excluded.LAST_HASH,
+            RECORD_COUNT  = excluded.RECORD_COUNT;
         """,
         [file_path, datetime.now(), file_hash, record_count, run_id]
     )
@@ -91,11 +102,11 @@ def mark_processed(file_path: str, status: str, record_count: int, run_id: str) 
         UPDATE FILE_TRACKING
         SET STATUS          = ?,
             PROCESSED_AT    = ?,
-            RECORD_COUNT    = ?,
-            PIPELINE_RUN_ID = ?
+            RECORD_COUNT    = ?
         WHERE FILE_PATH = ?
+          AND PIPELINE_RUN_ID = ?
         """,
-        [status, now, record_count, run_id, str(file_path)],
+        [status, now, record_count, str(file_path), run_id],
     )
     #conn.commit()
     conn.close()
@@ -108,10 +119,11 @@ def update_stage(file_path: str, stage: str, run_id: str) -> None:
     conn.execute(
         """
         UPDATE FILE_TRACKING
-        SET CURRENT_STAGE = ?, PROCESSED_AT = ?, PIPELINE_RUN_ID = ?
-        WHERE FILE_PATH = ?
+                SET CURRENT_STAGE = ?, PROCESSED_AT = ?
+                WHERE FILE_PATH = ?
+                    AND PIPELINE_RUN_ID = ?
         """,
-        [stage, now, run_id, str(file_path)],
+                [stage, now, str(file_path), run_id],
     )
     #conn.commit()
     conn.close()

@@ -2,9 +2,8 @@ import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.compute as pc
 import shutil 
-from pathlib import Path
-from support.logger import pipeline as log
-from pipeline.config.config import config_settings
+from FastFeast.support.logger import pipeline as log
+from FastFeast.utilities.db_utils import get_output_dir
 
 def load_and_clear_orphans(table_name:str) -> pa.Table: 
     """
@@ -12,7 +11,7 @@ def load_and_clear_orphans(table_name:str) -> pa.Table:
     Increments their retry count, and DELETES the old orphan files so they 
     don't get processed twice.    
     """
-    base_dir = Path(config_settings.paths.output_dir).resolve() / "validation" /  "orphans" / table_name
+    base_dir = get_output_dir() / "validation" / "orphans" / table_name
     if not base_dir.exists() or not any(base_dir.iterdir()):
         log.info("No orphan records found", table_name=table_name)
         return None

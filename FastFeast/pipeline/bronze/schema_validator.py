@@ -10,7 +10,7 @@ import yaml
 
 
 try:
-    from pipeline.observability import logger as pipeline_log
+    from FastFeast.observability import logger as pipeline_log
     LOG_AVAILABLE = True
 except ImportError:
     LOG_AVAILABLE = False
